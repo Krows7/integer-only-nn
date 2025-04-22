@@ -227,8 +227,7 @@ void print_matrix8(const Matrix8* m, char* name) {
     count_inc(d_m8_print);
 }
 
-// ------------ Matrix32 ------------
-Matrix32 init_m32(lsize_t width, lsize_t height) {
+Matrix32 init_m32_(lsize_t width, lsize_t height) {
     int32_t** matrix = malloc(width * sizeof(int32_t*));
     for (lsize_t i = 0; i < width; ++i) {
         matrix[i] = malloc(height * sizeof(int32_t));
@@ -241,12 +240,39 @@ Matrix32 init_m32(lsize_t width, lsize_t height) {
     return result;
 }
 
+// ------------ Matrix32 ------------
+Matrix32 init_m32(lsize_t width, lsize_t height) {
+    if (!m_pool) m_pool = create_pool(M32_CAPACITY);
+    if (m_pool->size < m_pool->capacity) {
+        m_pool->reserved[m_pool->size] = 1;
+        *m_pool->matrices[m_pool->size] = init_m32_(width, height);
+        return *m_pool->matrices[m_pool->size++];
+    } else {
+        for (lsize_t i = 0; i < m_pool->size; i++) {
+            // log("%d %d %d %d %d", m_pool->reserved[i], m_pool->matrices[i]->width, width, m_pool->matrices[i]->height, height);
+            if (m_pool->reserved[i] == 0 && m_pool->matrices[i]->width == width && m_pool->matrices[i]->height == height) {
+                m_pool->reserved[i] = 1;
+                return *m_pool->matrices[i];
+            }
+        }
+    }
+    return init_m32_(width, height);
+    // int32_t** matrix = malloc(width * sizeof(int32_t*));
+    // for (lsize_t i = 0; i < width; ++i) {
+    //     matrix[i] = malloc(height * sizeof(int32_t));
+    // }
+    // Matrix32 result;
+    // result.width = width;
+    // result.height = height;
+    // result.matrix = matrix;
+    // count_inc(d_m32_init);
+    // return result;
+}
+
 void free_m32(Matrix32* m) {
     if (!m || !m->matrix) return;
-    for (int i = 0; i < m_pool->size; i++) {
-        // log("%d %d", m_pool->matrices[i]->matrix, m->matrix);
+    for (lsize_t i = 0; i < m_pool->size; i++) {
         if (m_pool->matrices[i]->matrix == m->matrix) {
-            // log("gre");
             m_pool->reserved[i] = 0;
             return;
         }

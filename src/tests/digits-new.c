@@ -143,6 +143,7 @@ Matrix8 create_quantized_batch(float** full_float_data, int start_idx, int curre
 }
 
 int main(void) {
+    // init_pools();
     set_mu(LEARNING_RATE_MU); // Set global learning rate parameter
     // srand(time(NULL));       // Seed random number generator
 
