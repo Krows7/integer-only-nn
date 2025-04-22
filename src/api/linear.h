@@ -45,7 +45,9 @@ int get(const char key[]);
 int getIndex(const char key[]);
 void printMap();
 
-#define LINEAR_METRICS 0
+#define print_counter(name) static int count_##name = 0; log(#name ": %d", ++count_##name);
+
+#define LINEAR_METRICS 1
 #define ALLOW_LINEAR_VERBOSE DEBUG_LOG_LEVEL > 0 && LINEAR_METRICS > 0
 
 #if ALLOW_LINEAR_VERBOSE > 0
@@ -59,8 +61,10 @@ if (strcmp(VERBOSE_NAME, #name) == 0) { \
     log(#name " map:"); \
     printMap(); \
 }
-#define true_def get_mul8_2t
-#define get_mul8_2t stub
+// #define true_def init_m32_
+// #define init_m32_ stub
+// #define true_def get_mul8_2t
+// #define get_mul8_2t stub
 #else
 #define lin_count(name)
 #define count_name(name)
@@ -112,6 +116,13 @@ typedef struct Pool32 {
     lsize_t size;
     lsize_t capacity;
 } Pool32;
+
+typedef struct Pool8 {
+    Matrix8** matrices;
+    uint8_t* reserved;
+    lsize_t size;
+    lsize_t capacity;
+} Pool8;
 
 void init_pools();
 

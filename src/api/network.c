@@ -197,8 +197,9 @@ void weight_update(const Layer* layer, const Matrix8* grad_int8) {
 
 
 Matrix8 layer_forward(Layer* layer, const Matrix8* input) {
-    free_m8(&layer->input_copy); // Free previous copy if necessary
-    layer->input_copy = m_cpy(input); // Assumes m_cpy copies scale
+    // free_m8(&layer->input_copy); // Free previous copy if necessary
+    // layer->input_copy = m_cpy(input); // Assumes m_cpy copies scale
+    m_cpy(&layer->input_copy, input);
     if (layer->type == LINEAR) {
         Matrix32 temp = get_mul8_2t(&layer->input_copy, &layer->weights);
 
@@ -207,8 +208,9 @@ Matrix8 layer_forward(Layer* layer, const Matrix8* input) {
         free_m32(&temp); // Free intermediate 32-bit result
 
         // Store activation and its exponent
-        free_m8(&layer->activations); // Free previous
-        layer->activations = m_cpy(&result); // Store result
+        // free_m8(&layer->activations); // Free previous
+        // layer->activations = m_cpy(&result); // Store result
+        m_cpy(&layer->activations, &result);
 
         return result; // result contains data and scale
     } else if (layer->type == RELU) {
@@ -222,8 +224,9 @@ Matrix8 layer_forward(Layer* layer, const Matrix8* input) {
             }
         }
         // Store activation and its exponent
-        free_m8(&layer->activations);
-        layer->activations = m_cpy(&result);
+        // free_m8(&layer->activations);
+        // layer->activations = m_cpy(&result);
+        m_cpy(&layer->activations, &result);
 
         return result;
     } else {
@@ -270,6 +273,8 @@ Matrix8 layer_backward(const Layer* layer, const Matrix8* error_in) {
         weight_update(layer, &grad_int8);
         free_m8(&grad_int8); // Free the int8 gradient matrix
 
+        // print_layer(layer, "Linear");
+
         return err_out; // Contains data and scale
 
     } else if (layer->type == RELU) {
@@ -283,6 +288,9 @@ Matrix8 layer_backward(const Layer* layer, const Matrix8* error_in) {
                 err_out.matrix[i][j] = (layer->activations.matrix[i][j] > 0) ? error_in->matrix[i][j] : 0;
             }
         }
+
+        // print_layer(layer, "ReLU");
+
         return err_out;
     } else {
         error("Unsupported layer type in layer_backward.");
@@ -290,29 +298,29 @@ Matrix8 layer_backward(const Layer* layer, const Matrix8* error_in) {
     }
 }
 
-void m_cpy_(Matrix8* m, const Matrix8* src) {
-    if (m->width != src->width || m->height != src->height) {
-        for (lsize_t i = 0; i < m->width; ++i) {
-            free(m->matrix[i]);
-        }
-        free(m->matrix);
-        m->width = src->width;
-        m->height = src->height;
-        m->matrix = malloc(src->width * sizeof(int8_t*));
-        for (lsize_t i = 0; i < src->width; ++i) {
-            m->matrix[i] = malloc(src->height * sizeof(int8_t));
-        }
-    }
-    for (lsize_t i = 0; i < src->width; ++i) {
-        for (lsize_t j = 0; j < src->height; ++j) {
-            m->matrix[i][j] = src->matrix[i][j];
-        }
-    }
-    m->scale = src->scale;
-}
+// void m_cpy_(Matrix8* m, const Matrix8* src) {
+//     if (m->width != src->width || m->height != src->height) {
+//         for (lsize_t i = 0; i < m->width; ++i) {
+//             free(m->matrix[i]);
+//         }
+//         free(m->matrix);
+//         m->width = src->width;
+//         m->height = src->height;
+//         m->matrix = malloc(src->width * sizeof(int8_t*));
+//         for (lsize_t i = 0; i < src->width; ++i) {
+//             m->matrix[i] = malloc(src->height * sizeof(int8_t));
+//         }
+//     }
+//     for (lsize_t i = 0; i < src->width; ++i) {
+//         for (lsize_t j = 0; j < src->height; ++j) {
+//             m->matrix[i][j] = src->matrix[i][j];
+//         }
+//     }
+//     m->scale = src->scale;
+// }
 
 void layer_forward_1(Layer* layer, const Matrix8* input, Matrix8* out) {
-    m_cpy_(&layer->input_copy, input);
+    m_cpy(&layer->input_copy, input);
     if (layer->type == LINEAR) {
         Matrix32 temp = get_mul8_2t(&layer->input_copy, &layer->weights);
 
@@ -322,7 +330,9 @@ void layer_forward_1(Layer* layer, const Matrix8* input, Matrix8* out) {
         free(out->matrix);
         *out = act_calc(&temp, layer->input_copy.scale + layer->weights.scale);
         free_m32(&temp);
-        m_cpy_(&layer->activations, out);
+        m_cpy(&layer->activations, out);
+
+        // print_layer(layer, "Linear");
     } else if (layer->type == RELU) {
         if (!out->matrix) *out = init_m8(input->width, input->height);
         for (lsize_t i = 0; i < input->width; ++i) {
@@ -335,7 +345,9 @@ void layer_forward_1(Layer* layer, const Matrix8* input, Matrix8* out) {
         // Store activation and its exponent
         // free_m8(&layer->activations);
         // layer->activations = m_cpy(&result);
-        m_cpy_(&layer->activations, out);
+        m_cpy(&layer->activations, out);
+
+        // print_layer(layer, "ReLU");
     } else {
         error("Error: Unsupported layer type in layer_forward.");
     }
@@ -812,16 +824,47 @@ Vector8 v_cpy_range(const Vector8* orig, lsize_t start, lsize_t end) {
     return result;
 }
 
-Matrix8 m_cpy(const Matrix8 *m) {
-    Matrix8 result = init_m8(m->width, m->height);
+void m_cpy(Matrix8* to, const Matrix8 *m) {
+    if (to->width != m->width || to->height != m->height) {
+        free_m8(to);
+        *to = init_m8(m->width, m->height);
+        // for (lsize_t i = 0; i < to->width; ++i) {
+        //     free(to->matrix[i]);
+        // }
+        // free(to->matrix);
+        // to->width = m->width;
+        // to->height = m->height;
+        // to->matrix = malloc(m->width * sizeof(int8_t*));
+        // for (lsize_t i = 0; i < m->width; ++i) {
+        //     to->matrix[i] = malloc(m->height * sizeof(int8_t));
+        // }
+    }
     for (lsize_t i = 0; i < m->width; ++i) {
         for (lsize_t j = 0; j < m->height; ++j) {
-            result.matrix[i][j] = m->matrix[i][j];
+            to->matrix[i][j] = m->matrix[i][j];
         }
     }
-    result.scale = m->scale;
-    return result;
+    to->scale = m->scale;
+    // Matrix8 result = init_m8(m->width, m->height);
+    // for (lsize_t i = 0; i < m->width; ++i) {
+    //     for (lsize_t j = 0; j < m->height; ++j) {
+    //         result.matrix[i][j] = m->matrix[i][j];
+    //     }
+    // }
+    // result.scale = m->scale;
+    // return result;
 }
+
+// Matrix8 m_cpy(const Matrix8 *m) {
+//     Matrix8 result = init_m8(m->width, m->height);
+//     for (lsize_t i = 0; i < m->width; ++i) {
+//         for (lsize_t j = 0; j < m->height; ++j) {
+//             result.matrix[i][j] = m->matrix[i][j];
+//         }
+//     }
+//     result.scale = m->scale;
+//     return result;
+// }
 
 void free_network(Network* network) {
     for (uint8_t i = 0; i < network->num_layers; ++i) {
@@ -841,8 +884,16 @@ void free_layer(Layer* layer) {
 
 void print_layer(const Layer* layer, char* name) {
     printf("[%s] Layer (%s) [%d -> %d]:\n", name, layer->type == LINEAR ? "Linear" : "ReLU", layer->activations.width, layer->activations.height);
-    print_matrix8(&layer->weights, "Weights");
+    if (layer->type == LINEAR) print_matrix8(&layer->weights, "Weights");
     print_matrix8(&layer->activations, "Activations");
+    // lsize_t zeros = 0;
+    // for (lsize_t i = 0; i < layer->weights.width; ++i) {
+    //     for (lsize_t j = 0; j < layer->weights.height; ++j) {
+    //         if (layer->weights.matrix[i][j] == 0) zeros++;
+    //     }
+    // }
+    // float ratio = (float) zeros / (float) (layer->weights.width * layer->weights.height);
+    // log("Zeros: %.2f%% (%d/%d)", ratio * 100, zeros, layer->weights.width * layer->weights.height);
 };
 
 void print_network(const Network *network) {

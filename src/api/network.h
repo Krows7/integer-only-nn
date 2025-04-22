@@ -67,6 +67,7 @@ void set_mu(int8_t value); // Function to set global mu if used
 
 Matrix8 m_cpy_range(const Matrix8* orig, lsize_t start, lsize_t end);
 Vector8 v_cpy_range(const Vector8* orig, lsize_t start, lsize_t end);
-Matrix8 m_cpy(const Matrix8* m);
+// Matrix8 m_cpy(const Matrix8* m);
+void m_cpy(Matrix8* to, const Matrix8* m);
 
 #endif // NETWORK_H

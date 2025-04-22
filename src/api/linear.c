@@ -8,8 +8,9 @@
 // ------------ Matrix8 ------------
 
 #if ALLOW_LINEAR_VERBOSE > 0
-#undef stub
-#define get_mul8_2t stub
+// #undef stub
+// #define get_mul8_2t stub
+// #define init_m32_ stub
 lin_count(d_m8_init);
 lin_count(d_m8_free);
 lin_count(d_m8_print);
@@ -35,6 +36,8 @@ lin_count(d_ceil_log_2);
 lin_count(d_relu8);
 lin_count(d_effective_bitwidth);
 lin_count(d_print_metrics);
+lin_count(d_request_m32);
+lin_count(d_request_m8);
 
 #define MAX_SIZE 100 // Maximum number of elements in the map 
   
@@ -88,7 +91,9 @@ void printMap()
 }
 #endif
 
-Pool32* create_pool(int capacity) {
+// ------------ Pool32 ------------
+
+Pool32* create_pool_32(int capacity) {
     Pool32* pool = malloc(sizeof(Pool32));
     pool->matrices = malloc(capacity * sizeof(Matrix32*));
     for (int i = 0; i < capacity; i++) {
@@ -104,72 +109,48 @@ Pool32* create_pool(int capacity) {
 
 Pool32* m_pool = NULL;
 
-void init_pools() {
-    m_pool = create_pool(M32_CAPACITY);
-}
+// ------------ Pool8 ------------
 
-Matrix32* request_m32(lsize_t width, lsize_t height) {
-    if (!m_pool) m_pool = create_pool(M32_CAPACITY);
-    if (m_pool->size < m_pool->capacity) {
-        m_pool->reserved[m_pool->size] = 1;
-        *m_pool->matrices[m_pool->size] = init_m32(width, height);
-        return m_pool->matrices[m_pool->size++];
-    } else {
-        for (lsize_t i = 0; i < m_pool->size; i++) {
-            // log("%d %d %d %d %d", m_pool->reserved[i], m_pool->matrices[i]->width, width, m_pool->matrices[i]->height, height);
-            if (m_pool->reserved[i] == 0 && m_pool->matrices[i]->width == width && m_pool->matrices[i]->height == height) {
-                m_pool->reserved[i] = 1;
-                return m_pool->matrices[i];
-            }
-        }
+Pool8* create_pool_8(lsize_t capacity) {
+    Pool8* pool = malloc(sizeof(Pool8));
+    pool->matrices = malloc(capacity * sizeof(Matrix8*));
+    for (lsize_t i = 0; i < capacity; i++) {
+        pool->matrices[i] = malloc(sizeof(Matrix8));
     }
-    // return init_m32(width, height);
+    pool->reserved = calloc(sizeof(uint8_t), capacity);
+    pool->size = 0;
+    pool->capacity = capacity;
+    return pool;
 }
 
-void release_m32(Matrix32 *m) {
+#define M8_CAPACITY 20
 
+Pool8* m8_pool = NULL;
+
+void init_pools() {
+    m_pool = create_pool_32(M32_CAPACITY);
+    m8_pool = create_pool_8(M8_CAPACITY);
 }
 
-// void free_pool(Pool32* pool) {
-//     for (int i = 0; i < pool->size; i++) {
-//         free_m32(pool->matrices[i]);
-//     }
-//     free(pool->matrices);
-//     free(pool);
-// }
-
-// void fit_pool(Pool32* pool) {
-//     for (int i = 1; i < pool->size; i++) {
-//         if (pool->matrices[i - 1] == NULL && pool->matrices[i] != NULL) {
-//             pool->matrices[i - 1] = pool->matrices[i];
-//             pool->matrices[i] = NULL;
-//         }
-//     }
-// }
-
-// Matrix32* get_matrix(Pool32* pool, lsize_t width, lsize_t height) {
-//     if (pool->size < pool->capacity) {
-//         Matrix32* m = malloc(sizeof(Matrix32));
-//         *m = init_m32(width, height);
-//         pool->matrices[pool->size++] = m;
-//         return m;
+// Matrix32* request_m32(lsize_t width, lsize_t height) {
+//     if (!m_pool) m_pool = create_pool_32(M32_CAPACITY);
+//     if (m_pool->size < m_pool->capacity) {
+//         m_pool->reserved[m_pool->size] = 1;
+//         *m_pool->matrices[m_pool->size] = init_m32(width, height);
+//         return m_pool->matrices[m_pool->size++];
 //     } else {
-//         return NULL;
-//     }
-// }
-
-// // Matrix32* find_index(Pool32* pool, Matrix32* m) 
-
-// void free_pool_matrix(Pool32* pool, Matrix32* matrix) {
-//     for (int i = 0; i < pool->size; i++) {
-//         if (pool->matrices[i] == matrix) {
-//             free_m32(matrix);
-//             pool->matrices[i] = NULL;
-//             fit_pool(pool);
-//             pool->size--;
-//             return;
+//         for (lsize_t i = 0; i < m_pool->size; i++) {
+//             if (m_pool->reserved[i] == 0 && m_pool->matrices[i]->width == width && m_pool->matrices[i]->height == height) {
+//                 m_pool->reserved[i] = 1;
+//                 return m_pool->matrices[i];
+//             }
 //         }
 //     }
+//     // return init_m32(width, height);
+// }
+
+// void release_m32(Matrix32 *m) {
+
 // }
 
 void lin_cleanup() {
@@ -183,9 +164,20 @@ void lin_cleanup() {
     }
     free(m_pool->matrices);
     free(m_pool);
+
+    free(m8_pool->reserved);
+    for (lsize_t i = 0; i < m8_pool->size; i++) {
+        for (lsize_t j = 0; j < m8_pool->matrices[i]->width; ++j) {
+            free(m8_pool->matrices[i]->matrix[j]);
+        }
+        free(m8_pool->matrices[i]->matrix);
+        free(m8_pool->matrices[i]);
+    }
+    free(m8_pool->matrices);
+    free(m8_pool);
 }
 
-Matrix8 init_m8(lsize_t width, lsize_t height) {
+Matrix8 init_m8_(lsize_t width, lsize_t height) {
     int8_t** matrix = malloc(width * sizeof(int8_t*));
     for (lsize_t i = 0; i < width; ++i) {
         matrix[i] = malloc(height * sizeof(int8_t));
@@ -198,8 +190,71 @@ Matrix8 init_m8(lsize_t width, lsize_t height) {
     return result;
 }
 
+Matrix8 init_m8(lsize_t width, lsize_t height) {
+    count_inc(d_request_m8);
+    if (m8_pool->size < m8_pool->capacity) {
+        m8_pool->reserved[m8_pool->size] = 1;
+        *m8_pool->matrices[m8_pool->size] = init_m8_(width, height);
+        return *m8_pool->matrices[m8_pool->size++];
+    } else {
+        uint32_t first_free = m8_pool->capacity;
+        uint32_t first_suitable_free = m8_pool->capacity;
+        for (lsize_t i = 0; i < m8_pool->size; i++) {
+            if (m8_pool->reserved[i] == 0) {
+                if (first_free == m8_pool->capacity) first_free = i;
+                if (first_suitable_free == m8_pool->capacity && m8_pool->matrices[i]->height == height) first_suitable_free = i;
+                if (m8_pool->matrices[i]->width == width && m8_pool->matrices[i]->height == height) {
+                    m8_pool->reserved[i] = 1;
+                    return *m8_pool->matrices[i];
+                }
+            }
+        }
+        if (first_suitable_free != m8_pool->capacity) {
+            m8_pool->reserved[first_suitable_free] = 1;
+            Matrix8* m = m8_pool->matrices[first_suitable_free];
+            int8_t** matrix = malloc(width * sizeof(int8_t*));
+            if (m->width < width) {
+                for (lsize_t i = 0; i < m->width; ++i) {
+                    matrix[i] = m->matrix[i];
+                }
+                for (lsize_t i = m->width; i < width; ++i) {
+                    matrix[i] = malloc(height * sizeof(int8_t));
+                }
+            } else {
+                for (lsize_t i = 0; i < width; ++i) {
+                    matrix[i] = m->matrix[i];
+                }
+                for (lsize_t i = width; i < m->width; ++i) {
+                    free(m->matrix[i]);
+                }
+            }
+            free(m->matrix);
+            m->matrix = matrix;
+            m->width = width;
+            return *m;
+        }
+        if (first_free != m8_pool->capacity) {
+            m8_pool->reserved[first_free] = 1;
+            for (lsize_t j = 0; j < m8_pool->matrices[first_free]->width; ++j) {
+                free(m8_pool->matrices[first_free]->matrix[j]);
+            }
+            free(m8_pool->matrices[first_free]->matrix);
+            *m8_pool->matrices[first_free] = init_m8_(width, height);
+            return *m8_pool->matrices[first_free];
+        }
+    }
+    return init_m8_(width, height);
+}
+
 void free_m8(Matrix8* m) {
     if (!m || !m->matrix) return;
+    for (lsize_t i = 0; i < m8_pool->size; i++) {
+        if (m8_pool->matrices[i]->matrix == m->matrix) {
+            m8_pool->reserved[i] = 0;
+            return;
+        }
+    }
+
     for (lsize_t i = 0; i < m->width; ++i) {
         free(m->matrix[i]);
     }
@@ -240,20 +295,62 @@ Matrix32 init_m32_(lsize_t width, lsize_t height) {
     return result;
 }
 
+// #if ALLOW_LINEAR_VERBOSE > 0
+// #define stub(...) stub_1(__VA_ARGS__)
+// #endif
+
 // ------------ Matrix32 ------------
 Matrix32 init_m32(lsize_t width, lsize_t height) {
-    if (!m_pool) m_pool = create_pool(M32_CAPACITY);
+    count_inc(d_request_m32);
     if (m_pool->size < m_pool->capacity) {
         m_pool->reserved[m_pool->size] = 1;
         *m_pool->matrices[m_pool->size] = init_m32_(width, height);
         return *m_pool->matrices[m_pool->size++];
     } else {
+        uint32_t first_free = m_pool->capacity;
+        uint32_t first_suitable_free = m_pool->capacity;
         for (lsize_t i = 0; i < m_pool->size; i++) {
-            // log("%d %d %d %d %d", m_pool->reserved[i], m_pool->matrices[i]->width, width, m_pool->matrices[i]->height, height);
-            if (m_pool->reserved[i] == 0 && m_pool->matrices[i]->width == width && m_pool->matrices[i]->height == height) {
-                m_pool->reserved[i] = 1;
-                return *m_pool->matrices[i];
+            if (m_pool->reserved[i] == 0) {
+                if (first_free == m_pool->capacity) first_free = i;
+                if (first_suitable_free == m_pool->capacity && m_pool->matrices[i]->height == height) first_suitable_free = i;
+                if (m_pool->matrices[i]->width == width && m_pool->matrices[i]->height == height) {
+                    m_pool->reserved[i] = 1;
+                    return *m_pool->matrices[i];
+                }
             }
+        }
+        if (first_suitable_free != m_pool->capacity) {
+            m_pool->reserved[first_suitable_free] = 1;
+            Matrix32* m = m_pool->matrices[first_suitable_free];
+            int32_t** matrix = malloc(width * sizeof(int32_t*));
+            if (m->width < width) {
+                for (lsize_t i = 0; i < m->width; ++i) {
+                    matrix[i] = m->matrix[i];
+                }
+                for (lsize_t i = m->width; i < width; ++i) {
+                    matrix[i] = malloc(height * sizeof(int32_t));
+                }
+            } else {
+                for (lsize_t i = 0; i < width; ++i) {
+                    matrix[i] = m->matrix[i];
+                }
+                for (lsize_t i = width; i < m->width; ++i) {
+                    free(m->matrix[i]);
+                }
+            }
+            free(m->matrix);
+            m->matrix = matrix;
+            m->width = width;
+            return *m;
+        }
+        if (first_free != m_pool->capacity) {
+            m_pool->reserved[first_free] = 1;
+            for (lsize_t j = 0; j < m_pool->matrices[first_free]->width; ++j) {
+                free(m_pool->matrices[first_free]->matrix[j]);
+            }
+            free(m_pool->matrices[first_free]->matrix);
+            *m_pool->matrices[first_free] = init_m32_(width, height);
+            return *m_pool->matrices[first_free];
         }
     }
     return init_m32_(width, height);
@@ -560,9 +657,9 @@ Matrix32 get_mul8_2t(const Matrix8* A, const Matrix8* B_T) {
     return C;
 }
 
-#if ALLOW_LINEAR_VERBOSE > 0
-#define stub(...) stub_1(__VA_ARGS__)
-#endif
+// #if ALLOW_LINEAR_VERBOSE > 0
+// #define stub(...) stub_1(__VA_ARGS__)
+// #endif
 
 // ------------ Other ------------
 
@@ -629,5 +726,7 @@ void print_metrics() {
     print_count(d_relu8);
     print_count(d_effective_bitwidth);
     print_count(d_print_metrics);
+    print_count(d_request_m32);
+    print_count(d_request_m8);
     #endif
 }
