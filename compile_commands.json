@@ -1,0 +1,134 @@
+[
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-Wall",
+      "-O3",
+      "-Isrc/api",
+      "-Isrc/ext",
+      "-g",
+      "-Wextra",
+      "-c",
+      "-o",
+      "obj/linear.o",
+      "src/api/linear.c"
+    ],
+    "directory": "/home/huy/network-project",
+    "file": "/home/huy/network-project/src/api/linear.c",
+    "output": "/home/huy/network-project/obj/linear.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-Wall",
+      "-O3",
+      "-Isrc/api",
+      "-Isrc/ext",
+      "-g",
+      "-Wextra",
+      "-c",
+      "-o",
+      "obj/network.o",
+      "src/api/network.c"
+    ],
+    "directory": "/home/huy/network-project",
+    "file": "/home/huy/network-project/src/api/network.c",
+    "output": "/home/huy/network-project/obj/network.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-Wall",
+      "-O3",
+      "-Isrc/api",
+      "-Isrc/ext",
+      "-g",
+      "-Wextra",
+      "-c",
+      "-o",
+      "obj/quantization.o",
+      "src/api/quantization.c"
+    ],
+    "directory": "/home/huy/network-project",
+    "file": "/home/huy/network-project/src/api/quantization.c",
+    "output": "/home/huy/network-project/obj/quantization.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-Wall",
+      "-O3",
+      "-Isrc/api",
+      "-Isrc/ext",
+      "-g",
+      "-Wextra",
+      "-c",
+      "-o",
+      "obj/dataset_bench.o",
+      "src/ext/dataset_bench.c"
+    ],
+    "directory": "/home/huy/network-project",
+    "file": "/home/huy/network-project/src/ext/dataset_bench.c",
+    "output": "/home/huy/network-project/obj/dataset_bench.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-Wall",
+      "-O3",
+      "-Isrc/api",
+      "-Isrc/ext",
+      "-g",
+      "-Wextra",
+      "-c",
+      "-o",
+      "obj/float_ops.o",
+      "src/ext/float_ops.c"
+    ],
+    "directory": "/home/huy/network-project",
+    "file": "/home/huy/network-project/src/ext/float_ops.c",
+    "output": "/home/huy/network-project/obj/float_ops.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-Wall",
+      "-O3",
+      "-Isrc/api",
+      "-Isrc/ext",
+      "-g",
+      "-Wextra",
+      "-c",
+      "-o",
+      "obj/weights.o",
+      "src/ext/weights.c"
+    ],
+    "directory": "/home/huy/network-project",
+    "file": "/home/huy/network-project/src/ext/weights.c",
+    "output": "/home/huy/network-project/obj/weights.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-c",
+      "-Wall",
+      "-O3",
+      "-Isrc/api",
+      "-Isrc/ext",
+      "-g",
+      "-Wextra",
+      "obj/linear.o",
+      "obj/network.o",
+      "obj/quantization.o",
+      "obj/dataset_bench.o",
+      "obj/float_ops.o",
+      "obj/weights.o",
+      "-o",
+      "build/digits-new",
+      "src/tests/digits-new.c"
+    ],
+    "directory": "/home/huy/network-project",
+    "file": "/home/huy/network-project/src/tests/digits-new.c",
+    "output": "/home/huy/network-project/build/digits-new"
+  }
+]

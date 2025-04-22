@@ -1,11 +1,10 @@
 #include "../api/network.h" // Includes network logic and implicitly linear-math
 #include <stdint.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <limits.h>
-#include "../api/weights.h" // Includes init_weights_xavier_uniform
+#include "../ext/weights.h" // Includes init_weights_xavier_uniform
 
 // --- Dataset Constants ---
 #define INPUT_SIZE 64
@@ -287,14 +286,14 @@ int main(void) {
     // Layer 1: Input (64) -> Hidden (64)
     // Assuming init_layer takes (batch_size, input_features, output_neurons, type, next_layer)
     // The batch_size parameter in init_layer might be for pre-allocating intermediate results.
-    network->layers[0] = init_layer(BATCH_SIZE, INPUT_SIZE, HIDDEN_NEURONS, LINEAR, NULL); // Set next_layer later if needed
+    network->layers[0] = init_layer(BATCH_SIZE, INPUT_SIZE, HIDDEN_NEURONS, LINEAR); // Set next_layer later if needed
     init_weights_xavier_uniform(&network->layers[0]->weights);
     printf("Initialized Layer 1 (Hidden): %d inputs, %d neurons, Weight Scale: %d\n", INPUT_SIZE, HIDDEN_NEURONS, network->layers[0]->weights.scale);
 
-    network->layers[1] = init_layer(BATCH_SIZE, INPUT_SIZE, HIDDEN_NEURONS, RELU, NULL); // Set next_layer later if needed
+    network->layers[1] = init_layer(BATCH_SIZE, INPUT_SIZE, HIDDEN_NEURONS, RELU); // Set next_layer later if needed
 
     // Layer 2: Hidden (64) -> Output (10)
-    network->layers[2] = init_layer(BATCH_SIZE, HIDDEN_NEURONS, NUM_CLASSES, LINEAR, NULL); // Last layer, next is NULL
+    network->layers[2] = init_layer(BATCH_SIZE, HIDDEN_NEURONS, NUM_CLASSES, LINEAR); // Last layer, next is NULL
     init_weights_xavier_uniform(&network->layers[2]->weights);
     // network->layers[1] = init_layer(BATCH_SIZE, HIDDEN_NEURONS, NUM_CLASSES, LINEAR, NULL); // Last layer, next is NULL
     // init_weights_xavier_uniform(&network->layers[1]->weights);

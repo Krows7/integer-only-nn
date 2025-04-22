@@ -1,5 +1,6 @@
-#include <stdint.h>
-#include "quantization.h"
+#include <math.h>
+#include "quantization.h" // Or quantization.h
+#include <float.h> // For FLT_MIN, FLT_MAX
 
 // --- Helper: Estimate bitwidth of a single int32 ---
 // Returns the minimum bits needed to represent the value (excluding sign bit)
@@ -11,9 +12,11 @@ int8_t get_int32_bitwidth(int32_t val) {
     // Find position of the most significant bit (MSB)
     // __builtin_clz is efficient on GCC/Clang
     #if defined(__GNUC__) || defined(__clang__)
+        if (uval == 0) return 0; // Should not happen based on check above, but safe
         int leading_zeros = __builtin_clz(uval);
         return (32 - leading_zeros);
     #else
+        // Portable version (less efficient)
         int8_t bits = 0;
         while (uval > 0) {
             uval >>= 1;
@@ -25,9 +28,9 @@ int8_t get_int32_bitwidth(int32_t val) {
 
 // --- Helper: Estimate max bitwidth in a 32-bit matrix ---
 int8_t estimate_matrix_bitwidth(Matrix32* m) {
-    uint32_t max_abs_val = 0;
-    for (size_t i = 0; i < m->width; ++i) {
-        for (size_t j = 0; j < m->height; ++j) {
+    int32_t max_abs_val = 0;
+    for (uint16_t i = 0; i < m->width; ++i) {
+        for (uint16_t j = 0; j < m->height; ++j) {
             int32_t current_val = m->matrix[i][j];
             uint32_t abs_val = (current_val == INT32_MIN) ? (uint32_t)INT32_MAX + 1 : (uint32_t)abs(current_val);
             if (abs_val > max_abs_val) { // Use unsigned comparison
@@ -265,8 +268,8 @@ static inline int range_estimate_c(const int32_t* data, size_t num_elements) {
 // static inline int range_estimate_matrix32(const Matrix32* matrix) {
 //     if (!matrix || !matrix->matrix || matrix->width == 0 || matrix->height == 0) return 0;
 //     int32_t max_abs_val = 0;
-//     for (size_t i = 0; i < matrix->width; ++i) {
-//         for (size_t j = 0; j < matrix->height; ++j) {
+//     for (uint16_t i = 0; i < matrix->width; ++i) {
+//         for (uint16_t j = 0; j < matrix->height; ++j) {
 //             int32_t abs_val = abs(matrix->matrix[i][j]);
 //             if (abs_val > max_abs_val) {
 //                 max_abs_val = abs_val;

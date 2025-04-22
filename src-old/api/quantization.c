@@ -1,5 +1,14 @@
-#include <stdint.h>
-#include "quantization.h"
+#include <math.h>
+#include "quantization.h" // Or quantization.h
+#include <float.h> // For FLT_MIN, FLT_MAX
+
+// --- Helper: Clamp float to int8 range ---
+int8_t clamp_to_int8(float val) {
+    val = roundf(val);
+    if (val > 127.0f) return 127;
+    if (val < -128.0f) return -128;
+    return (int8_t)val;
+}
 
 // --- Helper: Estimate bitwidth of a single int32 ---
 // Returns the minimum bits needed to represent the value (excluding sign bit)
@@ -11,9 +20,11 @@ int8_t get_int32_bitwidth(int32_t val) {
     // Find position of the most significant bit (MSB)
     // __builtin_clz is efficient on GCC/Clang
     #if defined(__GNUC__) || defined(__clang__)
+        if (uval == 0) return 0; // Should not happen based on check above, but safe
         int leading_zeros = __builtin_clz(uval);
         return (32 - leading_zeros);
     #else
+        // Portable version (less efficient)
         int8_t bits = 0;
         while (uval > 0) {
             uval >>= 1;
@@ -25,9 +36,9 @@ int8_t get_int32_bitwidth(int32_t val) {
 
 // --- Helper: Estimate max bitwidth in a 32-bit matrix ---
 int8_t estimate_matrix_bitwidth(Matrix32* m) {
-    uint32_t max_abs_val = 0;
-    for (size_t i = 0; i < m->width; ++i) {
-        for (size_t j = 0; j < m->height; ++j) {
+    int32_t max_abs_val = 0;
+    for (uint16_t i = 0; i < m->width; ++i) {
+        for (uint16_t j = 0; j < m->height; ++j) {
             int32_t current_val = m->matrix[i][j];
             uint32_t abs_val = (current_val == INT32_MIN) ? (uint32_t)INT32_MAX + 1 : (uint32_t)abs(current_val);
             if (abs_val > max_abs_val) { // Use unsigned comparison
@@ -37,6 +48,68 @@ int8_t estimate_matrix_bitwidth(Matrix32* m) {
     }
      // Directly calculate bitwidth from the max absolute value found
     return get_int32_bitwidth(max_abs_val);
+}
+
+
+// --- Adaptive Quantization (Float -> Int8) ---
+Matrix8 quantize_float_matrix_adaptive(float** float_matrix, uint16_t width, uint16_t height) {
+    Matrix8 result = init_m8(width, height); // Assumes init_m8 allocates memory
+    float max_abs_val = 0.0f;
+
+    // 1. Find max absolute value
+    for (uint16_t i = 0; i < width; ++i) {
+        for (uint16_t j = 0; j < height; ++j) {
+            float abs_val = fabsf(float_matrix[i][j]);
+            if (abs_val > max_abs_val) {
+                max_abs_val = abs_val;
+            }
+        }
+    }
+
+    // 2. Calculate exponent
+    int8_t exponent = 0;
+    float scale_factor = 1.0f;
+    if (max_abs_val > 1e-9f) { // Avoid log(0)
+        float input_bitwidth = ceilf(log2f(max_abs_val));
+        exponent = (int8_t)(input_bitwidth - (float)BITWIDTH);
+        // scale_factor = 2^(BITWIDTH - input_bitwidth) = 2^(-exponent)
+        scale_factor = powf(2.0f, (float)BITWIDTH - input_bitwidth);
+    }
+
+    // 3. Scale, round, clamp, and store
+    for (uint16_t i = 0; i < width; ++i) {
+        for (uint16_t j = 0; j < height; ++j) {
+            float normalized_val = float_matrix[i][j] * scale_factor;
+            result.matrix[i][j] = clamp_to_int8(normalized_val);
+        }
+    }
+    result.scale = exponent;
+    return result;
+}
+
+// Vector version (similar logic)
+Vector8 quantize_float_vector_adaptive(float* float_vector, uint16_t length) {
+    Vector8 result = init_v8(length);
+    float max_abs_val = 0.0f;
+    for (uint16_t i = 0; i < length; ++i) {
+        float abs_val = fabsf(float_vector[i]);
+        if (abs_val > max_abs_val) max_abs_val = abs_val;
+    }
+
+    int8_t exponent = 0;
+    float scale_factor = 1.0f;
+    if (max_abs_val > 1e-9f) {
+        float input_bitwidth = ceilf(log2f(max_abs_val));
+        exponent = (int8_t)(input_bitwidth - (float)BITWIDTH);
+        scale_factor = powf(2.0f, (float)BITWIDTH - input_bitwidth);
+    }
+
+    for (uint16_t i = 0; i < length; ++i) {
+        float normalized_val = float_vector[i] * scale_factor;
+        result.vector[i] = clamp_to_int8(normalized_val);
+    }
+    result.scale = exponent;
+    return result;
 }
 
 
@@ -116,6 +189,16 @@ int8_t psto_shift(int32_t input, int8_t shift) {
     if (final_val < -128) return -128;
     return (int8_t)final_val;
 }
+
+// --- TODO: Update Matrix Multiplication if needed ---
+// If get_mul8 etc. assumed scale=0, they might need adjustment
+// or ensure inputs are rescaled before calling them if exponents differ.
+// For now, assume they work correctly on int8 inputs regardless of scale.
+// The scaling is handled *before* multiplication (in forward/backward logic).
+
+#include <stdint.h>
+#include <stdlib.h> // For abs()
+#include <math.h>   // For roundf(), log2(), ceil() if needed for RangeEstimate
 
 // Helper: Clip to int8 range [-127, 127] (matching Python's clip_val=127)
 // Note: Python clips to [-127, 127], not [-128, 127]. Let's match that.
@@ -265,8 +348,8 @@ static inline int range_estimate_c(const int32_t* data, size_t num_elements) {
 // static inline int range_estimate_matrix32(const Matrix32* matrix) {
 //     if (!matrix || !matrix->matrix || matrix->width == 0 || matrix->height == 0) return 0;
 //     int32_t max_abs_val = 0;
-//     for (size_t i = 0; i < matrix->width; ++i) {
-//         for (size_t j = 0; j < matrix->height; ++j) {
+//     for (uint16_t i = 0; i < matrix->width; ++i) {
+//         for (uint16_t j = 0; j < matrix->height; ++j) {
 //             int32_t abs_val = abs(matrix->matrix[i][j]);
 //             if (abs_val > max_abs_val) {
 //                 max_abs_val = abs_val;
