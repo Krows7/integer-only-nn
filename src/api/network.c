@@ -1,7 +1,7 @@
 #include "network.h"
 #include "linear.h"
 #include "quantization.h"
-#include "float_ops.h"
+// #include "float_ops.h"
 #include <inttypes.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -50,11 +50,12 @@ Matrix8 act_calc(Matrix32* int32_acc, int8_t input_exp) {
             }
         }
     } else {
-        exp_out = input_exp; // No shift applied
+        // exp_out = input_exp; // No shift applied
+        exp_out = input_exp + shift;
         for (lsize_t i = 0; i < result.width; ++i) {
             for (lsize_t j = 0; j < result.height; ++j) {
                 // Clamp directly if no shift needed
-                int32_t val = int32_acc->matrix[i][j];
+                int32_t val = int32_acc->matrix[i][j] >> -shift;
                 if (val > 127) result.matrix[i][j] = 127;
                 else if (val < -128) result.matrix[i][j] = -128;
                 else result.matrix[i][j] = (int8_t)val;
@@ -260,7 +261,8 @@ Matrix8 layer_backward(const Layer* layer, const Matrix8* error_in) {
         free_m32(&grad_int32acc);
 
         // Calculate the final gradient exponent
-        // int8_t grad_exp = err_in_exp + grad_shift + layer->input_copy.scale;
+        int8_t grad_exp = error_in->scale + grad_shift + layer->input_copy.scale;
+        grad_int8.scale = grad_exp;
 
         #if DEBUG_LOG_LEVEL >= 2
         for (lsize_t i = 0; i < 10; ++i) {
@@ -328,6 +330,7 @@ void layer_forward_1(Layer* layer, const Matrix8* input, Matrix8* out) {
             free(out->matrix[i]);
         }
         free(out->matrix);
+        // log("%d + %d = %d", layer->input_copy.scale, layer->weights.scale, layer->input_copy.scale + layer->weights.scale);
         *out = act_calc(&temp, layer->input_copy.scale + layer->weights.scale);
         free_m32(&temp);
         m_cpy(&layer->activations, out);
@@ -517,7 +520,7 @@ Matrix8 sto_shift(const Matrix32* matrix, int8_t shift) {
  * @param target_indices Array of length batch: the true‐class index for each example.
  * @return               TiLossResult containing quantized out_grad and err_out_exp.
  */
- Matrix8 TiLoss_forward(const Matrix8* out_val, const Vector8* target_indices) {
+ Matrix8 loss_gradient(const Matrix8* out_val, const Vector8* target_indices) {
     Matrix8 res;
 
     lsize_t classes = out_val->height;
@@ -704,7 +707,7 @@ Matrix8 network_backward_1(const Network* network, const Vector8* Y) {
     Matrix8 out_activations = last_layer->activations;
 
     // Matrix8 loss = loss_gradient(&out_activations, Y);
-    Matrix8 loss = TiLoss_forward(&out_activations, Y);
+    Matrix8 loss = loss_gradient(&out_activations, Y);
 
     for (int i = network->num_layers - 1; i >= 0; --i) {
         Matrix8 prev_error = layer_backward(network->layers[i], &loss);
@@ -714,88 +717,88 @@ Matrix8 network_backward_1(const Network* network, const Vector8* Y) {
     return loss;
 }
 
-Matrix8 network_backward_2(const Network* network, const Vector8* Y) {
-    // Y contains target labels (int8_t), assumed scale 0
+// Matrix8 network_backward_2(const Network* network, const Vector8* Y) {
+//     // Y contains target labels (int8_t), assumed scale 0
 
-    // 1. Get final layer's activation (already computed in forward pass)
-    const Layer* last_layer = network->layers[network->num_layers - 1];
-    Matrix8 out_activations = last_layer->activations; // This has scale last_layer->act_exp
+//     // 1. Get final layer's activation (already computed in forward pass)
+//     const Layer* last_layer = network->layers[network->num_layers - 1];
+//     Matrix8 out_activations = last_layer->activations; // This has scale last_layer->act_exp
 
-    // 2. Calculate initial error gradient (Float calculation -> Quantize)
-    lsize_t batch_size = out_activations.width;
-    lsize_t num_classes = out_activations.height;
+//     // 2. Calculate initial error gradient (Float calculation -> Quantize)
+//     lsize_t batch_size = out_activations.width;
+//     lsize_t num_classes = out_activations.height;
 
-    // Allocate temporary float storage
-    float** float_activations = malloc(batch_size * sizeof(float*));
-    float** float_error = malloc(batch_size * sizeof(float*));
-    for(lsize_t i=0; i<batch_size; ++i) {
-        float_activations[i] = malloc(num_classes * sizeof(float));
-        float_error[i] = malloc(num_classes * sizeof(float));
-    }
+//     // Allocate temporary float storage
+//     float** float_activations = malloc(batch_size * sizeof(float*));
+//     float** float_error = malloc(batch_size * sizeof(float*));
+//     for(lsize_t i=0; i<batch_size; ++i) {
+//         float_activations[i] = malloc(num_classes * sizeof(float));
+//         float_error[i] = malloc(num_classes * sizeof(float));
+//     }
 
-    // Reconstruct float activations
-    float act_scale_factor = powf(2.0f, (float)out_activations.scale);
-    for(lsize_t i=0; i<batch_size; ++i) {
-        for(lsize_t j=0; j<num_classes; ++j) {
-            float_activations[i][j] = (float)out_activations.matrix[i][j] * act_scale_factor;
-        }
-    }
+//     // Reconstruct float activations
+//     float act_scale_factor = powf(2.0f, (float)out_activations.scale);
+//     for(lsize_t i=0; i<batch_size; ++i) {
+//         for(lsize_t j=0; j<num_classes; ++j) {
+//             float_activations[i][j] = (float)out_activations.matrix[i][j] * act_scale_factor;
+//         }
+//     }
 
-    // Calculate float error (activation - target)
-    // Assuming cross-entropy gradient for softmax is approximated by (pred - target)
-    // Or for simple MSE-like loss on logits: (pred - target)
-    for(lsize_t i=0; i<batch_size; ++i) {
-        int8_t target_label = Y->vector[i];
-        for(lsize_t j=0; j<num_classes; ++j) {
-            // TODO Fix
-            float target_val = (j == (lsize_t) target_label) ? 1.0f : 0.0f; // One-hot target
-            // Adjust target scaling if necessary? Assume target is ideal 0/1 for now.
-            // Error = Prediction - Target
-            float_error[i][j] = float_activations[i][j] - target_val;
-            // If using softmax/cross-entropy, the gradient is simpler:
-            // float_error[i][j] = softmax_output[i][j] - target_val;
-            // But we only have logits (activations). Using (logit - target) is a common simplification.
-        }
-    }
+//     // Calculate float error (activation - target)
+//     // Assuming cross-entropy gradient for softmax is approximated by (pred - target)
+//     // Or for simple MSE-like loss on logits: (pred - target)
+//     for(lsize_t i=0; i<batch_size; ++i) {
+//         int8_t target_label = Y->vector[i];
+//         for(lsize_t j=0; j<num_classes; ++j) {
+//             // TODO Fix
+//             float target_val = (j == (lsize_t) target_label) ? 1.0f : 0.0f; // One-hot target
+//             // Adjust target scaling if necessary? Assume target is ideal 0/1 for now.
+//             // Error = Prediction - Target
+//             float_error[i][j] = float_activations[i][j] - target_val;
+//             // If using softmax/cross-entropy, the gradient is simpler:
+//             // float_error[i][j] = softmax_output[i][j] - target_val;
+//             // But we only have logits (activations). Using (logit - target) is a common simplification.
+//         }
+//     }
 
-    // Quantize float error using adaptive method
-    Matrix8 ce = quantize_float_matrix_adaptive(float_error, batch_size, num_classes);
+//     // Quantize float error using adaptive method
+//     Matrix8 ce = quantize_float_matrix_adaptive(float_error, batch_size, num_classes);
 
-    // print_matrix8(&ce, "Loss");
+//     // print_matrix8(&ce, "Loss");
 
-    Matrix8 current_error = init_m8(ce.width, ce.height);
-    for (lsize_t i = 0; i < ce.width; ++i) {
-        for (lsize_t j = 0; j < ce.height; ++j) {
-            current_error.matrix[i][j] = ce.matrix[i][j];
-        }
-    }
-    current_error.scale = ce.scale;
+//     Matrix8 current_error = init_m8(ce.width, ce.height);
+//     for (lsize_t i = 0; i < ce.width; ++i) {
+//         for (lsize_t j = 0; j < ce.height; ++j) {
+//             current_error.matrix[i][j] = ce.matrix[i][j];
+//         }
+//     }
+//     current_error.scale = ce.scale;
 
-    #if DEBUG_LOG_LEVEL >= 2
-    for (lsize_t i = 0; i < 2; ++i) {
-        debug("[Initial Error]: LastActExp=%d, ErrExp=%d, Err[0][0]=%d",
-            last_layer->activations.scale, current_error.scale, current_error.matrix[0][0]);
-    }
-    #endif
+//     #if DEBUG_LOG_LEVEL >= 2
+//     for (lsize_t i = 0; i < 2; ++i) {
+//         debug("[Initial Error]: LastActExp=%d, ErrExp=%d, Err[0][0]=%d",
+//             last_layer->activations.scale, current_error.scale, current_error.matrix[0][0]);
+//     }
+//     #endif
 
-    // Free temporary float storage
-    for(lsize_t i=0; i<batch_size; ++i) {
-        free(float_activations[i]);
-        free(float_error[i]);
-    }
-    free(float_activations);
-    free(float_error);
+//     // Free temporary float storage
+//     for(lsize_t i=0; i<batch_size; ++i) {
+//         free(float_activations[i]);
+//         free(float_error[i]);
+//     }
+//     free(float_activations);
+//     free(float_error);
 
-    // 3. Propagate error back through layers
-    for (int i = network->num_layers - 1; i >= 0; --i) {
-        Matrix8 prev_error = layer_backward(network->layers[i], &current_error);
-        free_m8(&current_error);
-        current_error = prev_error;
-    }
+//     // 3. Propagate error back through layers
+//     for (int i = network->num_layers - 1; i >= 0; --i) {
+//         Matrix8 prev_error = layer_backward(network->layers[i], &current_error);
+//         free_m8(&current_error);
+//         current_error = prev_error;
+//     }
 
-    // current_error now holds the error propagated back to the input
-    return current_error;
-}
+//     // current_error now holds the error propagated back to the input
+//     return current_error;
+// }
 
 Matrix8 network_backward(const Network* network, const Vector8* Y) {
     Matrix8 result = network_backward_1(network, Y);
@@ -883,7 +886,7 @@ void free_layer(Layer* layer) {
 }
 
 void print_layer(const Layer* layer, char* name) {
-    printf("[%s] Layer (%s) [%d -> %d]:\n", name, layer->type == LINEAR ? "Linear" : "ReLU", layer->activations.width, layer->activations.height);
+    println("[%s] Layer (%s) [%d -> %d]:", name, layer->type == LINEAR ? "Linear" : "ReLU", layer->activations.width, layer->activations.height);
     if (layer->type == LINEAR) print_matrix8(&layer->weights, "Weights");
     print_matrix8(&layer->activations, "Activations");
     // lsize_t zeros = 0;
@@ -897,17 +900,17 @@ void print_layer(const Layer* layer, char* name) {
 };
 
 void print_network(const Network *network) {
-    printf("Network:\n");
-    printf("Batch Size: %d\n", network->layers[0]->activations.width);
-    printf("Input (%d) -> ", network->layers[0]->weights.height);
+    println("Network:");
+    println("Batch Size: %d", network->layers[0]->activations.width);
+    print("Input (%d) -> ", network->layers[0]->weights.height);
     for (lsize_t i = 0; i < network->num_layers; ++i) {
-        printf("%s", network->layers[i]->type == LINEAR ? "Linear" : "ReLU");
+        print("%s", network->layers[i]->type == LINEAR ? "Linear" : "ReLU");
         if (network->layers[i]->type == LINEAR) {
-            printf(" (%d)", network->layers[i]->activations.height);
+            print(" (%d)", network->layers[i]->activations.height);
         }
         if (i < network->num_layers - 1) {
-            printf(" -> ");
+            print(" -> ");
         }
     }
-    printf("\n");
+    println();
 }

@@ -32,6 +32,7 @@ void free_network(Network* network);
 void free_layer(Layer* layer);
 void print_layer(const Layer* layer, char* name);
 void print_network(const Network* network);
+Matrix8 loss_gradient(const Matrix8* out, const Vector8* Y);
 
 // Core Network Operations (Update signatures)
 // Input matrix X should contain the *quantized* int8 data and its exponent

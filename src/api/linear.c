@@ -11,33 +11,6 @@
 // #undef stub
 // #define get_mul8_2t stub
 // #define init_m32_ stub
-lin_count(d_m8_init);
-lin_count(d_m8_free);
-lin_count(d_m8_print);
-lin_count(d_m32_init);
-lin_count(d_m32_free);
-lin_count(d_m32_print);
-lin_count(d_m64_init);
-lin_count(d_m64_free);
-lin_count(d_m64_print);
-lin_count(d_v8_init);
-lin_count(d_v8_free);
-lin_count(d_v8_print);
-lin_count(d_mul8);
-lin_count(d_get_mul8);
-lin_count(d_get_mul32);
-lin_count(d_to_mat32);
-lin_count(d_sub8);
-lin_count(d_mul8_1t);
-lin_count(d_get_mul8_1t);
-lin_count(d_mul8_2t);
-lin_count(d_get_mul8_2t);
-lin_count(d_ceil_log_2);
-lin_count(d_relu8);
-lin_count(d_effective_bitwidth);
-lin_count(d_print_metrics);
-lin_count(d_request_m32);
-lin_count(d_request_m8);
 
 #define MAX_SIZE 100 // Maximum number of elements in the map 
   
@@ -267,18 +240,18 @@ void free_m8(Matrix8* m) {
 }
 
 void print_matrix8(const Matrix8* m, char* name) {
-    printf("[%s] Matrix:\n[", name);
+    print("[%s] Matrix:\n[", name);
     for (lsize_t i = 0; i < m->width; ++i) {
-        printf("[");
+        print("[");
         for (lsize_t j = 0; j < m->height; ++j) {
-            if (j == m->height - 1) printf("%d", m->matrix[i][j]);
-            else printf("%d, ", m->matrix[i][j]);
+            if (j == m->height - 1) print("%d", m->matrix[i][j]);
+            else print("%d, ", m->matrix[i][j]);
         }
-        if (i == m->width - 1) printf("]");
-        else printf("]\n");
+        if (i == m->width - 1) print("]");
+        else println("]");
     }
-    printf("]\n");
-    printf("Scale: %d; Shape: (%d, %d)\n\n", m->scale, m->width, m->height);
+    println("]");
+    println("Scale: %d; Shape: (%d, %d)\n", m->scale, m->width, m->height);
     count_inc(d_m8_print);
 }
 
@@ -387,38 +360,38 @@ void free_m32(Matrix32* m) {
 }
 
 void print_matrix32(const Matrix32* m, char* name) {
-    printf("[%s] Matrix:\n[", name);
+    print("[%s] Matrix:\n[", name);
     for (lsize_t i = 0; i < m->width; ++i) {
-        printf("[");
+        print("[");
         for (lsize_t j = 0; j < m->height; ++j) {
-            if (j == m->height - 1) printf("%d", m->matrix[i][j]);
-            else printf("%d, ", m->matrix[i][j]);
+            if (j == m->height - 1) print("%d", m->matrix[i][j]);
+            else print("%d, ", m->matrix[i][j]);
         }
-        if (i == m->width - 1) printf("]");
-        else printf("]\n");
+        if (i == m->width - 1) print("]");
+        else println("]");
     }
-    printf("]\n");
-    printf("Scale: %d\n", m->scale);
-    printf("Shape: (%d, %d)\n\n", m->width, m->height);
+    println("]");
+    println("Scale: %d", m->scale);
+    println("Shape: (%d, %d)\n", m->width, m->height);
     count_inc(d_m32_print);
 }
 
 // ------------ Matrix64 ------------
 
 void print_matrix64(const Matrix64* m, char* name) {
-    printf("[%s] Matrix:\n[", name);
+    print("[%s] Matrix:\n[", name);
     for (lsize_t i = 0; i < m->width; ++i) {
-        printf("[");
+        print("[");
         for (lsize_t j = 0; j < m->height; ++j) {
-            if (j == m->height - 1) printf("%" PRId64, m->matrix[i][j]);
-            else printf("%" PRId64 ", ", m->matrix[i][j]);
+            if (j == m->height - 1) print("%" PRId64, m->matrix[i][j]);
+            else print("%" PRId64 ", ", m->matrix[i][j]);
         }
-        if (i == m->width - 1) printf("]");
-        else printf("]\n");
+        if (i == m->width - 1) print("]");
+        else println("]");
     }
-    printf("]\n");
-    printf("Scale: %d\n", m->scale);
-    printf("Shape: (%d, %d)\n\n", m->width, m->height);
+    println("]");
+    println("Scale: %d", m->scale);
+    println("Shape: (%d, %d)\n", m->width, m->height);
     count_inc(d_m64_print);
 }
 
@@ -470,14 +443,14 @@ void free_v8(Vector8* v) {
 }
 
 void print_vector8(const Vector8* v, char* name) {
-    printf("[%s] Vector: [", name);
+    print("[%s] Vector: [", name);
     for (uint8_t i = 0; i < v->length; ++i) {
-        if (i == v->length - 1) printf("%d", v->vector[i]);
-        else printf("%d, ", v->vector[i]);
+        if (i == v->length - 1) print("%d", v->vector[i]);
+        else print("%d, ", v->vector[i]);
     }
-    printf("]\n");
-    printf("Scale: %d\n", v->scale);
-    printf("Length: %d\n\n", v->length);
+    println("]");
+    println("Scale: %d", v->scale);
+    println("Length: %d\n", v->length);
     count_inc(d_v8_print);
 }
 
@@ -485,16 +458,16 @@ void print_vector8(const Vector8* v, char* name) {
 
 void mul8(const Matrix8* A, const Matrix8* B, Matrix32* C) {
     if (A->height != B->width) {
-        printf("Error: A->height != B->width: (%d != %d)\n", A->height, B->width);
-        printf("A: (%d, %d)\n", A->width, A->height);
-        printf("B: (%d, %d)\n", B->width, B->height);
+        println("Error: A->height != B->width: (%d != %d)", A->height, B->width);
+        println("A: (%d, %d)", A->width, A->height);
+        println("B: (%d, %d)", B->width, B->height);
         return;
     }
     if (A->width != C->width || B->height != C->height) {
-        printf("Error: A->width != C->width || B->height != C->height: (%d != %d) || (%d != %d)\n", A->width, C->width, B->height, C->height);
-        printf("A: (%d, %d)\n", A->width, A->height);
-        printf("B: (%d, %d)\n", B->width, B->height);
-        printf("C: (%d, %d)\n", C->width, C->height);
+        println("Error: A->width != C->width || B->height != C->height: (%d != %d) || (%d != %d)", A->width, C->width, B->height, C->height);
+        println("A: (%d, %d)", A->width, A->height);
+        println("B: (%d, %d)", B->width, B->height);
+        println("C: (%d, %d)", C->width, C->height);
         return;
     }
 
@@ -547,9 +520,8 @@ Matrix32 to_mat32(const Matrix8* m) {
 
 void sub8(const Matrix8* M, const Matrix8* sub) {
     if (M->width != sub->width || M->height != sub->height) {
-        fprintf(stderr, "Error in sub8: Matrix dimensions do not match.\n");
-        fprintf(stderr, "M shape: (%d, %d), sub shape: (%d, %d)\n",
-                M->width, M->height, sub->width, sub->height);
+        println("Error in sub8: Matrix dimensions do not match.");
+        println("M shape: (%d, %d), sub shape: (%d, %d)", M->width, M->height, sub->width, sub->height);
         exit(1);
     }
 
@@ -564,16 +536,16 @@ void sub8(const Matrix8* M, const Matrix8* sub) {
 // A must be transposed in product
 void mul8_1t(const Matrix8* A_T, const Matrix8* B, Matrix32* C) {
     if (A_T->width != B->width) {
-        printf("Error: A_T->width != B->width: (%d != %d)\n", A_T->width, B->width);
-        printf("A_T: (%d, %d)\n", A_T->width, A_T->height);
-        printf("B: (%d, %d)\n", B->width, B->height);
+        println("Error: A_T->width != B->width: (%d != %d)", A_T->width, B->width);
+        println("A_T: (%d, %d)", A_T->width, A_T->height);
+        println("B: (%d, %d)", B->width, B->height);
         return;
     }
     if (A_T->height != C->width || B->height != C->height) {
-        printf("Error: A_T->height != C->width || B->height != C->height: (%d != %d) || (%d != %d)\n", A_T->height, C->width, B->height, C->height);
-        printf("A_T: (%d, %d)\n", A_T->width, A_T->height);
-        printf("B: (%d, %d)\n", B->width, B->height);
-        printf("C: (%d, %d)\n", C->width, C->height);
+        println("Error: A_T->height != C->width || B->height != C->height: (%d != %d) || (%d != %d)", A_T->height, C->width, B->height, C->height);
+        println("A_T: (%d, %d)", A_T->width, A_T->height);
+        println("B: (%d, %d)", B->width, B->height);
+        println("C: (%d, %d)", C->width, C->height);
         return;
     }
     
@@ -600,16 +572,16 @@ Matrix32 get_mul8_1t(const Matrix8* A_T, const Matrix8* B) {
 // B must be transposed in product
 void mul8_2t(const Matrix8* A, const Matrix8* B_T, Matrix32* C) {
     if (A->height != B_T->height) {
-        printf("Error: A->height != B_T->height: (%d != %d)\n", A->height, B_T->height);
-        printf("A: (%d, %d)\n", A->width, A->height);
-        printf("B_T: (%d, %d)\n", B_T->width, B_T->height);
+        println("Error: A->height != B_T->height: (%d != %d)", A->height, B_T->height);
+        println("A: (%d, %d)", A->width, A->height);
+        println("B_T: (%d, %d)", B_T->width, B_T->height);
         return;
     }
     if (A->width != C->width || B_T->width != C->height) {
-        printf("Error: A->width != C->width || B_T->width != C->height: (%d != %d) || (%d != %d)\n", A->width, C->width, B_T->width, C->height);
-        printf("A: (%d, %d)\n", A->width, A->height);
-        printf("B_T: (%d, %d)\n", B_T->width, B_T->height);
-        printf("C: (%d, %d)\n", C->width, C->height);
+        println("Error: A->width != C->width || B_T->width != C->height: (%d != %d) || (%d != %d)", A->width, C->width, B_T->width, C->height);
+        println("A: (%d, %d)", A->width, A->height);
+        println("B_T: (%d, %d)", B_T->width, B_T->height);
+        println("C: (%d, %d)", C->width, C->height);
         return;
     }
 
@@ -696,37 +668,4 @@ uint8_t effective_bitwidth(const Matrix32* matrix) {
     uint8_t b = ceil_log_2(max_value);
     count_inc(d_effective_bitwidth);
     return b;
-}
-
-void print_metrics() {
-    #if ALLOW_LINEAR_VERBOSE > 0
-    log("Linear Math Metrics:");
-    print_count(d_m8_init);
-    print_count(d_m8_free);
-    print_count(d_m8_print);
-    print_count(d_m32_init);
-    print_count(d_m32_free);
-    print_count(d_m32_print);
-    print_count(d_m64_init);
-    print_count(d_m64_free);
-    print_count(d_m64_print);
-    print_count(d_v8_init);
-    print_count(d_v8_free);
-    print_count(d_v8_print);
-    print_count(d_mul8);
-    print_count(d_get_mul8);
-    print_count(d_get_mul32);
-    print_count(d_to_mat32);
-    print_count(d_sub8);
-    print_count(d_mul8_1t);
-    print_count(d_get_mul8_1t);
-    print_count(d_mul8_2t);
-    print_count(d_get_mul8_2t);
-    print_count(d_ceil_log_2);
-    print_count(d_relu8);
-    print_count(d_effective_bitwidth);
-    print_count(d_print_metrics);
-    print_count(d_request_m32);
-    print_count(d_request_m8);
-    #endif
 }

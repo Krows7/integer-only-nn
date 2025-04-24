@@ -1,87 +1,105 @@
-# Compiler and Flags
 CC       := gcc
-# CFLAGS: -Wall (warnings), -O2 (optimization), -Isrc/api (include path for headers), -g (debug symbols)
-# CFLAGS   := -Wall -O3 -Isrc/api -Isrc/ext -fsanitize=address -g -Wextra
-CFLAGS   := -Wall -O3 -Isrc/api -Isrc/ext -g -Wextra
-# LDFLAGS: -lm (link math library for functions like sqrtf, powf, log2f, etc.)
+BASE_CFLAGS := -Wall -O3 -g -Wextra
 LDFLAGS  := -lm
 
-# Directories
-SRCDIR		:= src
+SRCDIR      := src
 API_SRCDIR  := $(SRCDIR)/api
-EXT_SRCDIR	:= $(SRCDIR)/ext
+EXT_SRCDIR  := $(SRCDIR)/ext
+NES_SRCDIR  := $(SRCDIR)/nes
 TEST_SRCDIR := $(SRCDIR)/tests
 OBJDIR      := obj
 BINDIR      := build
 
-# Find source files
+API_OBJDIR     := $(OBJDIR)/api
+API_NES_OBJDIR := $(OBJDIR)/api_nes
+EXT_OBJDIR     := $(OBJDIR)/ext
+NES_OBJDIR     := $(OBJDIR)/nes
+EXT_BINDIR     := $(BINDIR)/ext
+NES_BINDIR     := $(BINDIR)/nes
+
 API_SRC     := $(wildcard $(API_SRCDIR)/*.c)
-EXT_SRC		:= $(wildcard $(EXT_SRCDIR)/*.c)
-TEST_SRC    := $(wildcard $(TEST_SRCDIR)/*.c)
+EXT_IMPL_SRC := $(wildcard $(EXT_SRCDIR)/*.c)
+NES_IMPL_SRC := $(wildcard $(NES_SRCDIR)/*.c)
+TEST_EXT_SRC := $(wildcard $(TEST_SRCDIR)/ext/*.c)
+TEST_NES_SRC := $(wildcard $(TEST_SRCDIR)/nes/*.c)
 
-# Generate object file names from API source files
-API_OBJ     := $(patsubst $(API_SRCDIR)/%.c,$(OBJDIR)/%.o,$(API_SRC))
+API_OBJ     := $(patsubst $(API_SRCDIR)/%.c,$(API_OBJDIR)/%.o,$(API_SRC))
+API_NES_OBJ := $(patsubst $(API_SRCDIR)/%.c,$(API_NES_OBJDIR)/%.o,$(API_SRC))
+EXT_IMPL_OBJ := $(patsubst $(EXT_SRCDIR)/%.c,$(EXT_OBJDIR)/%.o,$(EXT_IMPL_SRC))
+NES_IMPL_OBJ := $(patsubst $(NES_SRCDIR)/%.c,$(NES_OBJDIR)/%.o,$(NES_IMPL_SRC))
 
-EXT_OBJ     := $(patsubst $(EXT_SRCDIR)/%.c,$(OBJDIR)/%.o,$(EXT_SRC))
+TEST_EXT_EXECS := $(patsubst $(TEST_SRCDIR)/ext/%.c,$(EXT_BINDIR)/%,$(TEST_EXT_SRC))
+TEST_NES_EXECS := $(patsubst $(TEST_SRCDIR)/nes/%.c,$(NES_BINDIR)/%,$(TEST_NES_SRC))
 
-# Generate executable names from test source files (e.g., src/tests/foo.c -> bin/foo)
-TEST_EXECS  := $(patsubst $(TEST_SRCDIR)/%.c,$(BINDIR)/%,$(TEST_SRC))
-
-# Default target: build all test executables
 .PHONY: all
-all: $(TEST_EXECS)
+all: $(TEST_EXT_EXECS) $(TEST_NES_EXECS)
 
-# Rule to link a test executable
-# Depends on the specific test source file and *all* API object files
-# Uses order-only prerequisite for the bin directory
-$(BINDIR)/%: $(TEST_SRCDIR)/%.c $(API_OBJ) $(EXT_OBJ) | $(BINDIR)
-	@echo "Linking $@..."
-	$(CC) $(CFLAGS) $^ $(LDFLAGS) -o $@
+$(EXT_BINDIR)/%: $(TEST_SRCDIR)/ext/%.c $(API_OBJ) $(EXT_IMPL_OBJ) | $(EXT_BINDIR)
+	@echo "Linking (EXT) $@..."
+	$(CC) $(BASE_CFLAGS) -I$(API_SRCDIR) -I$(EXT_SRCDIR) $^ $(LDFLAGS) -o $@
 
-# Rule to compile an API source file into an object file
-# Depends on the source file and potentially headers in API dir
-$(OBJDIR)/%.o: $(API_SRCDIR)/%.c $(wildcard $(API_SRCDIR)/*.h) | $(OBJDIR)
-	@echo "Compiling (API) $< -> $@..."
-	$(CC) $(CFLAGS) -c $< -o $@
+$(NES_BINDIR)/%: $(TEST_SRCDIR)/nes/%.c $(API_NES_OBJ) $(NES_IMPL_OBJ) | $(NES_BINDIR)
+	@echo "Linking (NES) $@..."
+	$(CC) $(BASE_CFLAGS) -DNES -I$(API_SRCDIR) -I$(NES_SRCDIR) $^ $(LDFLAGS) -o $@
 
-# Rule to compile an EXT source file into an object file
-# Depends on the source file and potentially headers in EXT dir
-$(OBJDIR)/%.o: $(EXT_SRCDIR)/%.c $(wildcard $(EXT_SRCDIR)/*.h) | $(OBJDIR)
-	@echo "Compiling (EXT) $< -> $@..."
-	$(CC) $(CFLAGS) -c $< -o $@
+$(API_OBJDIR)/%.o: $(API_SRCDIR)/%.c $(wildcard $(API_SRCDIR)/*.h) | $(API_OBJDIR)
+	@echo "Compiling (API for EXT) $< -> $@..."
+	$(CC) $(BASE_CFLAGS) -I$(API_SRCDIR) -c $< -o $@
 
-# Rule to create the object directory if it doesn't exist
-$(OBJDIR):
+$(API_NES_OBJDIR)/%.o: $(API_SRCDIR)/%.c $(wildcard $(API_SRCDIR)/*.h) | $(API_NES_OBJDIR)
+	@echo "Compiling (API for NES) $< -> $@..."
+	$(CC) $(BASE_CFLAGS) -DNES -I$(API_SRCDIR) -c $< -o $@
+
+$(EXT_OBJDIR)/%.o: $(EXT_SRCDIR)/%.c $(wildcard $(EXT_SRCDIR)/*.h) $(wildcard $(API_SRCDIR)/*.h) | $(EXT_OBJDIR)
+	@echo "Compiling (EXT Impl) $< -> $@..."
+	$(CC) $(BASE_CFLAGS) -I$(API_SRCDIR) -I$(EXT_SRCDIR) -c $< -o $@
+
+$(NES_OBJDIR)/%.o: $(NES_SRCDIR)/%.c $(wildcard $(NES_SRCDIR)/*.h) $(wildcard $(API_SRCDIR)/*.h) | $(NES_OBJDIR)
+	@echo "Compiling (NES Impl) $< -> $@..."
+	$(CC) $(BASE_CFLAGS) -DNES -I$(API_SRCDIR) -I$(NES_SRCDIR) -c $< -o $@
+
+$(API_OBJDIR):
 	@echo "Creating directory $@..."
 	@mkdir -p $@
 
-# Rule to create the bin directory if it doesn't exist
-$(BINDIR):
+$(API_NES_OBJDIR):
 	@echo "Creating directory $@..."
 	@mkdir -p $@
 
-# Clean target: remove object files and executables
+$(EXT_OBJDIR):
+	@echo "Creating directory $@..."
+	@mkdir -p $@
+
+$(NES_OBJDIR):
+	@echo "Creating directory $@..."
+	@mkdir -p $@
+
+$(EXT_BINDIR):
+	@echo "Creating directory $@..."
+	@mkdir -p $@
+
+$(NES_BINDIR):
+	@echo "Creating directory $@..."
+	@mkdir -p $@
+
 .PHONY: clean
 clean:
 	@echo "Cleaning build files..."
 	@rm -rf $(OBJDIR) $(BINDIR)
 
-# Example of how to add a run target for a specific test
-.PHONY: run-digits
-run-digits: $(BINDIR)/digits
-	@echo "Running digits..."
-	./$(BINDIR)/digits
+.PHONY: run-ext-digits
+run-ext-digits: $(EXT_BINDIR)/digits
+	@echo "Running ext/digits..."
+	./$(EXT_BINDIR)/digits
 
-# Allow user to specify which binary to debug:
-#   make debug BIN=digits
-BIN        ?= 
-# Extra GDB commands (e.g. -ex "print foo" -ex "print bar")
+BIN        ?=
 GDB_EXTRA  ?= --batch -q -ex "run" -ex "bt" -ex "info locals"
 
 .PHONY: debug
 debug:
 ifeq ($(BIN),)
-	$(error Usage: make debug BIN=<binary> [GDB_EXTRA="<extra -ex args>"])
+	$(error Usage: make debug BIN=<subdir>/<binary> [GDB_EXTRA="<extra -ex args>"])
 endif
-	@echo "→ Debugging $(BIN) in GDB…"
+	@echo "→ Debugging $(BINDIR)/$(BIN) in GDB…"
 	./run-debug.sh $(BIN)
+

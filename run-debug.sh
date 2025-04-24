@@ -45,4 +45,4 @@ fi
 GDB_ARGS+=( --args "$EXE" )
 
 # Run it:
-gdb "${GDB_ARGS[@]}"
+gdb "${GDB_ARGS[@]}" || true
