@@ -19,13 +19,6 @@ typedef struct {
 } Matrix32;
 
 typedef struct {
-    int64_t** matrix;
-    lsize_t width;
-    lsize_t height;
-    int8_t scale;
-} Matrix64;
-
-typedef struct {
     int8_t* vector;
     lsize_t length;
     int8_t scale;
@@ -67,11 +60,6 @@ Matrix32 init_m32(lsize_t width, lsize_t height);
 void free_m32(Matrix32* m);
 void print_matrix32(const Matrix32* m, char* name);
 
-// Matrix64
-Matrix64 init_m64(lsize_t width, lsize_t height);
-void free_m64(Matrix64* m);
-void print_matrix64(const Matrix64* m, char* name);
-
 // Vector8
 Vector8 init_v8(lsize_t length);
 void free_v8(Vector8* v);
@@ -95,4 +83,4 @@ uint8_t effective_bitwidth(const Matrix32* matrix);
 
 void lin_cleanup();
 
-#endif // NN_MATH_H
+#endif

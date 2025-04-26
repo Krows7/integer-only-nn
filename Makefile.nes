@@ -1,0 +1,99 @@
+# --- CC65 Configuration ---
+# Adjust paths if cc65 isn't in your system PATH
+CC65        := cl65
+CA65        := ca65
+LD65        := ld65
+
+# Target system for cc65
+CC65_TARGET := nes
+
+# --- NES Source Files ---
+# Define your core API and NES implementation sources here
+API_SRC          := $(wildcard src/api/*.c)
+NES_IMPL_SRC     := $(wildcard src/nes/*.c)
+
+# Assume your core NES C code is in src/api and src/nes
+# You might need platform-specific code too
+NES_PLATFORM_SRC := $(wildcard src/platform/nes/*.c)
+NES_ASM_SRC      := $(wildcard src/platform/nes/*.s) # Add assembly files
+# ... rest of the section ...
+
+
+# NES Linker Config File (provided by cc65 or custom)
+NES_CFG     := $(CC65_HOME)/cfg/nes.cfg # Adjust path if needed, or copy nes.cfg locally
+# NES Library (provided by cc65)
+NES_LIB     := $(CC65_HOME)/lib/nes.lib # Adjust path if needed
+
+# Output ROM file name
+ROM_NAME    := build/nes/my_network.nes
+
+# --- NES Source Files ---
+# Assume your core NES C code is in src/api and src/nes
+# You might need platform-specific code too
+NES_PLATFORM_SRC := $(wildcard src/platform/nes/*.c)
+NES_ASM_SRC      := $(wildcard src/platform/nes/*.s) # Add assembly files
+
+# Combine API (compiled with -DNES) and your NES implementation
+NES_C_SRC        := $(API_SRC) $(NES_IMPL_SRC) $(NES_PLATFORM_SRC)
+
+# --- NES Object Files ---
+# Use a separate object directory for cc65 objects
+OBJDIR_NES_CC65  := obj/nes_cc65
+
+# Generate object file names
+NES_C_OBJ        := $(patsubst src/%.c,$(OBJDIR_NES_CC65)/%.o,$(NES_C_SRC))
+NES_ASM_OBJ      := $(patsubst src/%.s,$(OBJDIR_NES_CC65)/%.o,$(NES_ASM_SRC))
+NES_ALL_OBJ      := $(NES_C_OBJ) $(NES_ASM_OBJ)
+
+# --- NES Build Flags ---
+# -t nes: Target NES system
+# -Oirs: Optimizations (register usage, inline subs, code size) - common for cc65
+# -I flags: Include paths
+# -D flags: Preprocessor defines (NES=1 is often implicit with -t nes, but -DNES=1 is safer)
+CFLAGS_NES       := -t $(CC65_TARGET) -Oirs -I src/api -I src/nes -I src/platform/nes -DNES=1
+ASFLAGS_NES      := --cpu 6502 # Specify CPU for assembler
+
+# --- NES Build Rules ---
+
+# Phony target to build the NES ROM
+.PHONY: nes
+nes: $(ROM_NAME)
+
+# Rule to link the NES ROM
+$(ROM_NAME): $(NES_ALL_OBJ) | $(dir $(ROM_NAME))
+	@echo "Linking (NES ROM) $@"
+	$(LD65) -o $@ -C $(NES_CFG) $^ $(NES_LIB)
+	# Alternative using cl65 driver (simpler):
+	# $(CC65) $(CFLAGS_NES) -o $@ $^
+
+# Rule to compile NES C source files
+$(OBJDIR_NES_CC65)/%.o: src/%.c | $(OBJDIR_NES_CC65)
+	@echo "Compiling (NES C) $< -> $@"
+	$(CC65) $(CFLAGS_NES) -c $< -o $@
+
+# Rule to assemble NES assembly source files
+$(OBJDIR_NES_CC65)/%.o: src/%.s | $(OBJDIR_NES_CC65)
+	@echo "Assembling (NES ASM) $< -> $@"
+	$(CA65) $(ASFLAGS_NES) $< -o $@
+
+# Rule to create the NES object directory
+$(OBJDIR_NES_CC65):
+	@echo "Creating directory $@..."
+	@mkdir -p $@
+
+# Rule to create the NES build directory (where the ROM goes)
+$(dir $(ROM_NAME)):
+	@echo "Creating directory $@..."
+	@mkdir -p $@
+
+# Clean target modification (optional, add NES dirs)
+.PHONY: clean_nes
+clean_nes:
+	@echo "Cleaning NES build files..."
+	@rm -rf $(OBJDIR_NES_CC65) $(ROM_NAME)
+
+# Modify main clean target
+# clean: clean_pc clean_nes # If you rename original clean
+clean:
+	@echo "Cleaning build files..."
+	@rm -rf $(OBJDIR) $(BINDIR) $(OBJDIR_NES_CC65) # Add NES obj dir

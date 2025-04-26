@@ -12,3 +12,4 @@ unzip -q iris.zip -d data/iris
 rm iris.zip
 
 python3 iris-to-nes-suitable.py
+python3 iris-to-nes-header.py

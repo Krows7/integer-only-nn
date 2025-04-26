@@ -396,17 +396,16 @@ Matrix8 network_forward_2(const Network* network, const Matrix8* X) {
 
 void assert_m8_equals(const Matrix8* a, const Matrix8* b) {
     if (a->width != b->width || a->height != b->height) {
-        printf("Error: Matrix dimensions do not match.\n");
-        printf("a shape: (%d, %d), b shape: (%d, %d)\n",
-                a->width, a->height, b->width, b->height);
+        error("Error: Matrix dimensions do not match.\n");
+        error("a shape: (%d, %d), b shape: (%d, %d)\n", a->width, a->height, b->width, b->height);
         exit(1);
     }
 
     for (lsize_t i = 0; i < a->width; ++i) {
         for (lsize_t j = 0; j < a->height; ++j) {
             if (a->matrix[i][j] != b->matrix[i][j]) {
-                printf("Error: Matrix values do not match at (%d, %d).\n", i, j);
-                printf("a value: %d, b value: %d\n", a->matrix[i][j], b->matrix[i][j]);
+                error("Error: Matrix values do not match at (%d, %d).\n", i, j);
+                error("a value: %d, b value: %d\n", a->matrix[i][j], b->matrix[i][j]);
                 exit(1);
             }
         }
@@ -433,41 +432,41 @@ Matrix32 to32(const Matrix8* matrix) {
     return result;
 }
 
-Matrix64 to64(const Matrix8* matrix) {
-    Matrix64 result = init_m64(matrix->width, matrix->height);
-    for (lsize_t i = 0; i < matrix->width; ++i) {
-        for (lsize_t j = 0; j < matrix->height; ++j) {
-            result.matrix[i][j] = (int64_t) matrix->matrix[i][j];
-        }
-    }
-    result.scale = matrix->scale;
-    return result;
-}
+// Matrix64 to64(const Matrix8* matrix) {
+//     Matrix64 result = init_m64(matrix->width, matrix->height);
+//     for (lsize_t i = 0; i < matrix->width; ++i) {
+//         for (lsize_t j = 0; j < matrix->height; ++j) {
+//             result.matrix[i][j] = (int64_t) matrix->matrix[i][j];
+//         }
+//     }
+//     result.scale = matrix->scale;
+//     return result;
+// }
 
-Matrix64 get_sum(const Matrix64* matrix) {
-    Matrix64 result = init_m64(matrix->width, 1);
-    for (lsize_t i = 0; i < matrix->width; ++i) {
-        for (lsize_t j = 0; j < matrix->height; ++j) {
-            result.matrix[i][0] += matrix->matrix[i][j];
-        }
-    }
-    return result;
-}
+// Matrix64 get_sum(const Matrix64* matrix) {
+//     Matrix64 result = init_m64(matrix->width, 1);
+//     for (lsize_t i = 0; i < matrix->width; ++i) {
+//         for (lsize_t j = 0; j < matrix->height; ++j) {
+//             result.matrix[i][0] += matrix->matrix[i][j];
+//         }
+//     }
+//     return result;
+// }
 
-Matrix32 m64_to_m32(const Matrix64* matrix) {
-    Matrix32 result;
-    result.width = matrix->width;
-    result.height = matrix->height;
-    result.matrix = malloc(matrix->width * sizeof(int32_t*));
-    for (lsize_t i = 0; i < matrix->width; ++i) {
-        result.matrix[i] = malloc(matrix->height * sizeof(int32_t));
-        for (lsize_t j = 0; j < matrix->height; ++j) {
-            result.matrix[i][j] = (int32_t) matrix->matrix[i][j];
-        }
-    }
-    result.scale = matrix->scale;
-    return result;
-}
+// Matrix32 m64_to_m32(const Matrix64* matrix) {
+//     Matrix32 result;
+//     result.width = matrix->width;
+//     result.height = matrix->height;
+//     result.matrix = malloc(matrix->width * sizeof(int32_t*));
+//     for (lsize_t i = 0; i < matrix->width; ++i) {
+//         result.matrix[i] = malloc(matrix->height * sizeof(int32_t));
+//         for (lsize_t j = 0; j < matrix->height; ++j) {
+//             result.matrix[i][j] = (int32_t) matrix->matrix[i][j];
+//         }
+//     }
+//     result.scale = matrix->scale;
+//     return result;
+// }
 
 // def StoShift(input, shift):
 //     '''
@@ -539,19 +538,19 @@ Matrix8 sto_shift(const Matrix32* matrix, int8_t shift) {
         // change base from e to 2: multiply by 47274/(2^15)
         for (lsize_t r = 0; r < s.width; ++r) {
             for (lsize_t c = 0; c < s.height; ++c) {
-                s.matrix[r][c] = s.matrix[r][c] * 47274 / (1LL<<15);
+                s.matrix[r][c] = s.matrix[r][c] * 47274 / (1<<15);
             }
         }
 
         if (out_val->scale >= 0) {
-            int64_t m = 1LL << out_val->scale;
+            int32_t m = 1 << out_val->scale;
             for (lsize_t r = 0; r < s.width; ++r) {
                 for (lsize_t c = 0; c < s.height; ++c) {
                     s.matrix[r][c] *= m;
                 }
         }
         } else {
-            int64_t d = 1LL << -out_val->scale;
+            int32_t d = 1 << -out_val->scale;
             for (lsize_t r = 0; r < s.width; ++r) {
                 for (lsize_t c = 0; c < s.height; ++c) {
                     s.matrix[r][c] /= d;

@@ -1,11 +1,17 @@
 #ifndef BASE_NN_H
-#undef BASE_NN_H
+#define BASE_NN_H
 
 #include <stdlib.h>
 #include <stdint.h>
-#include <math.h>
+// #include <math.h>
+
+// #undef NES
 
 // #define NES
+
+// #ifdef NES
+// #undef NES
+// #endif
 
 #ifdef NES
 #define urand8() rand8()
@@ -15,10 +21,10 @@
 typedef uint8_t lsize_t;
 #define DEBUG_LOG_LEVEL 0
 #define PRINT_ALLOWED 0
-#define print(fmt, ...)
+#define print(...)
 #define print_num(num)
 #define print_pair(n1, n2)
-#define println(fmt, ...)
+#define println(...)
 // #define fprintf(out, fmt ...)
 #define print_counter(name)
 #else
@@ -43,22 +49,22 @@ typedef uint32_t lsize_t;
 
 #if PRINT_ALLOWED > 0
     #define fatal(fmt, ...) fprintf(stderr, "FATAL [%s:%d] " fmt "\n", __FILE__, __LINE__, ##__VA_ARGS__); exit(1)
-    #define assert_fatal(cond, fmt, ...) if (!(cond)) fatal(fmt, ##__VA_ARGS__)
+    #define assert_fatal(cond, fmt, ...) if (!(cond)) {fatal(fmt, ##__VA_ARGS__);}
 #else
-    #define fatal(fmt, ...)
-    #define assert_fatal(cond, fmt, ...)
+    #define fatal(...)
+    #define assert_fatal(...)
 #endif
 
 #if PRINT_ALLOWED > 0 && DEBUG_LOG_LEVEL >= 1
     #define log(fmt, ...) fprintf(stderr, "INFO [%s:%d] " fmt "\n", __FILE__, __LINE__, ##__VA_ARGS__)
 #else
-    #define log(fmt, ...)
+    #define log(...)
 #endif
 
 #if PRINT_ALLOWED > 0 && DEBUG_LOG_LEVEL >= 2
     #define debug(fmt, ...) fprintf(stderr, "DEBUG [%s:%d] " fmt "\n", __FILE__, __LINE__, ##__VA_ARGS__)
 #else
-    #define debug(fmt, ...)
+    #define debug(...)
 #endif
 
 
@@ -67,7 +73,7 @@ typedef uint32_t lsize_t;
 #elif PRINT_ALLOWED > 0
 #define error(fmt, ...) fprintf(stderr, "ERROR [%s:%d] " fmt "\n", __FILE__, __LINE__, ##__VA_ARGS__)
 #else
-#define error(fmt, ...)
+#define error(...)
 #endif
 
 
@@ -142,5 +148,14 @@ insert(__FILE__ ":" GET_INT_STR(__LINE__), get(__FILE__ ":" GET_INT_STR(__LINE__
 #define stub_1(...) \
 true_def(__VA_ARGS__); \
 insert(__FILE__ ":" GET_INT_STR(__LINE__), get(__FILE__ ":" GET_INT_STR(__LINE__)) + 1)
+
+#ifdef VBCC
+#undef println
+#define println(...)
+#undef print
+#define print(...)
+#undef fatal
+#define fatal(...)
+#endif
 
 #endif

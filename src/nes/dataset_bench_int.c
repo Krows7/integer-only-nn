@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 // integer square-root (any standard 32-bit routine will do)
 uint32_t isqrt32(uint32_t x) {
@@ -193,16 +194,20 @@ void load_batch(int8_t*** X, Vector8* Y, Matrix8* x_batch, Vector8* y_batch, lsi
     // free_m8(x_batch);
     *x_batch = init_m8(batch_size, features);
     for (lsize_t i = 0; i < batch_size; i++) {
-        for (lsize_t j = 0; j < features; j++) {
-            (*x_batch).matrix[i][j] = X[0][start_idx + i][j];
-        }
+        memcpy(x_batch->matrix[i], (*X)[start_idx + i], features * sizeof(int8_t));
+        // for (lsize_t j = 0; j < features; j++) {
+        //     (*x_batch).matrix[i][j] = (*X)[start_idx + i][j];
+        // }
     }
+    x_batch->scale = 0;
 
     // free_v8(y_batch);
     *y_batch = init_v8(batch_size);
-    for (lsize_t i = 0; i < batch_size; i++) {
-        (*y_batch).vector[i] = Y->vector[start_idx + i];
-    }
+    memcpy(y_batch->vector, Y->vector + start_idx, batch_size * sizeof(int8_t));
+    // for (lsize_t i = 0; i < batch_size; i++) {
+    //     (*y_batch).vector[i] = Y->vector[start_idx + i];
+    // }
+    y_batch->scale = Y->scale;
 }
 
 void cleanup(Network* network, int8_t*** X_train, Vector8* Y_train, lsize_t train_samples_size, int8_t*** X_test, Vector8* Y_test, lsize_t test_samples_size) {

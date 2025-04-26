@@ -1,8 +1,11 @@
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include "base.h"
 #include "dataset_bench_int.h"
 #include "quantization.h"
+#include "iris-data.h"
 
 // --- Dataset Constants ---
 #define IRIS_INPUT_SIZE 4       // Sepal Length, Sepal Width, Petal Length, Petal Width
@@ -11,9 +14,7 @@
 #define MAX_LINE_LENGTH 255     // Reduced, but still generous
 #define TRAIN_SPLIT_RATIO 90   // for training, in %
 
-// --- Data File Paths ---
-// IMPORTANT: Update this path to the location of your iris.data file
-#define IRIS_DATA_FILE "data/iris/iris-nes.data" // <--- CHANGE THIS
+#define IRIS_DATA_FILE "data/iris/iris-nes.data"
 
 // Calculate split sizes
 #define IRIS_MAX_TRAIN_SAMPLES (int) (IRIS_TOTAL_SAMPLES * TRAIN_SPLIT_RATIO)
@@ -48,107 +49,154 @@ void shuffle_indices(uint8_t *array, size_t n) {
 }
 
 
-void load_and_split_iris(const char* filename,
-                               int8_t*** X_train, Vector8* Y_train, lsize_t* train_count,
-                               int8_t*** X_test, Vector8* Y_test, lsize_t* test_count)
-{
-    FILE* file = fopen(filename, "r");
-    assert_fatal(file, "Error: Could not open file %s", filename);
+// void load_and_split_iris(const char* filename,
+//                                int8_t*** X_train, Vector8* Y_train, lsize_t* train_count,
+//                                int8_t*** X_test, Vector8* Y_test, lsize_t* test_count)
+// {
+//     println("Loading and splitting Iris data (float) from %s...", filename);
+//     FILE* file = fopen(filename, "r");
+//     assert_fatal(file, "Error: Could not open file %s", filename);
 
-    int8_t** all_x = malloc(IRIS_TOTAL_SAMPLES * sizeof(int8_t*));
-    int8_t* all_Y_int = malloc(IRIS_TOTAL_SAMPLES * sizeof(int8_t));
+//     int8_t** all_x = malloc(IRIS_TOTAL_SAMPLES * sizeof(int8_t*));
+//     int8_t* all_Y_int = malloc(IRIS_TOTAL_SAMPLES * sizeof(int8_t));
+//     uint8_t* indices = malloc(IRIS_TOTAL_SAMPLES * sizeof(uint8_t));
+//     if (!all_x || !all_Y_int || !indices) {
+//         fclose(file);
+//         fatal("Memory allocation failed for temporary Iris data storage");
+//     }
+//     for(int i = 0; i < IRIS_TOTAL_SAMPLES; ++i) {
+//         all_x[i] = malloc(IRIS_INPUT_SIZE * sizeof(int8_t));
+//         if (!all_x[i]) {
+//             for(int j=0; j<i; ++j) free(all_x[j]);
+//             free(all_x);
+//             free(all_Y_int);
+//             free(indices);
+//             fclose(file);
+//             fatal("Memory allocation failed for temporary Iris sample %d", i);
+//         }
+//         indices[i] = i;
+//     }
+
+//     char line[MAX_LINE_LENGTH];
+//     int sample_count = 0;
+//     const char* delim = ",";
+
+//     while (fgets(line, sizeof(line), file) && sample_count < IRIS_TOTAL_SAMPLES) {
+//         char* line_copy = strdup(line);
+//         assert_fatal(line_copy, "Memory allocation failed for line_copy");
+//         char* token;
+//         int feature_count = 0;
+
+//         token = strtok(line_copy, delim);
+//         while (token != NULL && feature_count < IRIS_INPUT_SIZE) {
+//             char *endptr;
+//             // float val = strtof(token, &endptr);
+//             uint8_t val = strtoul(token, &endptr, 10);
+//             if (endptr == token || (*endptr != '\0' && *endptr != '\n' && *endptr != '\r' && *endptr != ',')) {
+//                 error("Warning: Invalid feature value '%s' at sample %d, feature %d. Skipping sample.", token, sample_count, feature_count);
+//                 goto next_line; // Skip rest of the line processing
+//             }
+//             all_x[sample_count][feature_count] = val;
+//             feature_count++;
+//             token = strtok(NULL, delim);
+//         }
+
+//         if (token != NULL && feature_count == IRIS_INPUT_SIZE) {
+//             token[strcspn(token, "\r\n")] = 0;
+
+//             all_Y_int[sample_count] = strtoul(token, NULL, 10);
+            
+//             sample_count++;
+//         } else {
+//             error("Warning: Incorrect data format at line corresponding to sample index %d in %s. Skipping.", sample_count, filename);
+//         }
+
+//     next_line:
+//         free(line_copy);
+//     }
+//     fclose(file);
+
+//     if (sample_count != IRIS_TOTAL_SAMPLES) {
+//         error("Warning: Expected %d samples, but loaded %d valid samples from %s.", IRIS_TOTAL_SAMPLES, sample_count, filename);
+//     }
+//     log("Loaded %d total valid float samples from %s.", sample_count, filename);
+
+//     shuffle_indices(indices, sample_count);
+
+//     *train_count = (int) (sample_count * TRAIN_SPLIT_RATIO / 100);
+//     *test_count = sample_count - *train_count;
+
+//     *X_train = malloc(*train_count * sizeof(int8_t*));
+//     *X_test = malloc(*test_count * sizeof(int8_t*));
+    
+//     assert_fatal(*X_train && X_test, "Memory allocation failed for final train/test X pointers");
+
+//     for (lsize_t i = 0; i < *train_count; ++i) {
+//         int original_idx = indices[i];
+//         (*X_train)[i] = all_x[original_idx];
+//         Y_train->vector[i] = all_Y_int[original_idx];
+//     }
+//     Y_train->length = *train_count;
+//     Y_train->scale = 0;
+
+//     for (lsize_t i = 0; i < *test_count; ++i) {
+//         int original_idx = indices[*train_count + i];
+//         (*X_test)[i] = all_x[original_idx];
+//         Y_test->vector[i] = all_Y_int[original_idx];
+//     }
+//     Y_test->length = *test_count;
+//     Y_test->scale = 0;
+
+//     log("Split data: %d training samples, %d testing samples.", *train_count, *test_count);
+
+//     free(all_x);
+//     free(all_Y_int);
+//     free(indices);
+// }
+
+
+void split_iris(int8_t*** X_train, Vector8* Y_train, lsize_t* train_count, int8_t*** X_test, Vector8* Y_test, lsize_t* test_count) {
+    *train_count = (int16_t) IRIS_SAMPLES * (int16_t) TRAIN_SPLIT_RATIO / (int16_t) 100;
+    *test_count = IRIS_SAMPLES - *train_count;
+
     uint8_t* indices = malloc(IRIS_TOTAL_SAMPLES * sizeof(uint8_t));
-    if (!all_x || !all_Y_int || !indices) {
-        fclose(file);
-        fatal("Memory allocation failed for temporary Iris data storage");
-    }
-    for(int i = 0; i < IRIS_TOTAL_SAMPLES; ++i) {
-        all_x[i] = malloc(IRIS_INPUT_SIZE * sizeof(int8_t));
-        if (!all_x[i]) {
-            for(int j=0; j<i; ++j) free(all_x[j]);
-            free(all_x);
-            free(all_Y_int);
-            free(indices);
-            fclose(file);
-            fatal("Memory allocation failed for temporary Iris sample %d", i);
-        }
+    for (uint8_t i = 0; i < IRIS_TOTAL_SAMPLES; ++i) {
         indices[i] = i;
     }
+    shuffle_indices(indices, IRIS_TOTAL_SAMPLES);
 
-    char line[MAX_LINE_LENGTH];
-    int sample_count = 0;
-    const char* delim = ",";
-
-    while (fgets(line, sizeof(line), file) && sample_count < IRIS_TOTAL_SAMPLES) {
-        char* line_copy = strdup(line);
-        assert_fatal(line_copy, "Memory allocation failed for line_copy");
-        char* token;
-        int feature_count = 0;
-
-        token = strtok(line_copy, delim);
-        while (token != NULL && feature_count < IRIS_INPUT_SIZE) {
-            char *endptr;
-            // float val = strtof(token, &endptr);
-            uint8_t val = strtoul(token, &endptr, 10);
-            if (endptr == token || (*endptr != '\0' && *endptr != '\n' && *endptr != '\r' && *endptr != ',')) {
-                error("Warning: Invalid feature value '%s' at sample %d, feature %d. Skipping sample.", token, sample_count, feature_count);
-                goto next_line; // Skip rest of the line processing
-            }
-            all_x[sample_count][feature_count] = val;
-            feature_count++;
-            token = strtok(NULL, delim);
+    *X_train = malloc(*train_count * sizeof(int8_t*));
+    assert_fatal(*X_train, "Memory allocation failed for X_train pointers");
+    for (lsize_t i = 0; i < *train_count; ++i) {
+        (*X_train)[i] = malloc(IRIS_INPUT_SIZE * sizeof(int8_t));
+        assert_fatal((*X_train)[i], "Memory allocation failed for X_train sample %u", i);
+        for (lsize_t j = 0; j < IRIS_INPUT_SIZE; ++j) {
+            (*X_train)[i][j] = iris_X[indices[i]][j];
         }
-
-        if (token != NULL && feature_count == IRIS_INPUT_SIZE) {
-            token[strcspn(token, "\r\n")] = 0;
-
-            all_Y_int[sample_count] = strtoul(token, NULL, 10);
-            
-            sample_count++;
-        } else {
-            error("Warning: Incorrect data format at line corresponding to sample index %d in %s. Skipping.", sample_count, filename);
-        }
-
-    next_line:
-        free(line_copy);
     }
-    fclose(file);
 
-    if (sample_count != IRIS_TOTAL_SAMPLES) {
-        error("Warning: Expected %d samples, but loaded %d valid samples from %s.", IRIS_TOTAL_SAMPLES, sample_count, filename);
+    *Y_train = init_v8(*train_count);
+    for (lsize_t i = 0; i < *train_count; ++i) {
+        (*Y_train).vector[i] = iris_Y[indices[i]];
     }
-    log("Loaded %d total valid float samples from %s.", sample_count, filename);
-
-    shuffle_indices(indices, sample_count);
-
-    *train_count = (int) (sample_count * TRAIN_SPLIT_RATIO / 100);
-    *test_count = sample_count - *train_count;
-
-    *X_train = malloc(*train_count * sizeof(int*));
-    *X_test = malloc(*test_count * sizeof(int*));
-    
-    assert_fatal(*X_train && X_test, "Memory allocation failed for final train/test X pointers");
-
-    for (int i = 0; i < *train_count; ++i) {
-        int original_idx = indices[i];
-        (*X_train)[i] = all_x[original_idx];
-        Y_train->vector[i] = all_Y_int[original_idx];
-    }
-    Y_train->length = *train_count;
     Y_train->scale = 0;
 
-    for (int i = 0; i < *test_count; ++i) {
-        int original_idx = indices[*train_count + i];
-        (*X_test)[i] = all_x[original_idx];
-        Y_test->vector[i] = all_Y_int[original_idx];
+    *X_test = malloc(*test_count * sizeof(int8_t*));
+    assert_fatal(*X_test, "Memory allocation failed for X_test pointers");
+    for (lsize_t i = 0; i < *test_count; ++i) {
+        (*X_test)[i] = malloc(IRIS_INPUT_SIZE * sizeof(int8_t));
+        assert_fatal((*X_test)[i], "Memory allocation failed for X_test sample %u", i);
+        for (lsize_t j = 0; j < IRIS_INPUT_SIZE; ++j) {
+            (*X_test)[i][j] = iris_X[indices[i + *train_count]][j];
+        }
     }
-    Y_test->length = *test_count;
+
+    *Y_test = init_v8(*test_count);
+    for (lsize_t i = 0; i < *test_count; ++i) {
+        (*Y_test).vector[i] = iris_Y[indices[i + *train_count]];
+    }
     Y_test->scale = 0;
 
-    log("Split data: %d training samples, %d testing samples.", *train_count, *test_count);
-
-    free(all_x);
-    free(all_Y_int);
     free(indices);
 }
 
@@ -157,7 +205,7 @@ int main(void) {
     set_mu(LEARNING_RATE_MU); // Set global learning rate parameter
     // srand(time(NULL)); // Seeding is now done before shuffling in load function
 
-    println("--- C Implementation Configuration (Iris Dataset) ---");
+    // println("--- C Implementation Configuration (Iris Dataset) ---");
     println("Input Size: %d", IRIS_INPUT_SIZE);
     println("Number of Classes: %d", IRIS_NUM_CLASSES);
     println("Using learning rate parameter mu = %d", LEARNING_RATE_MU);
@@ -170,14 +218,40 @@ int main(void) {
     println("Initializing Iris Classification Test (C)...");
     println("Allocating memory for labels...");
 
-    Y_train_full = init_v8(IRIS_TOTAL_SAMPLES);
-    Y_test_full = init_v8(IRIS_TOTAL_SAMPLES);
+    // Y_train_full = init_v8(135);
+    // Y_test_full = init_v8(15);
 
-    println("Loading and splitting Iris data (float) from %s...", IRIS_DATA_FILE);
+    // load_and_split_iris(IRIS_DATA_FILE,
+    //                         &X_train_float, &Y_train_full, &num_train_samples_loaded,
+    //                         &X_test_float, &Y_test_full, &num_test_samples_loaded);
 
-    load_and_split_iris(IRIS_DATA_FILE,
-                            &X_train_float, &Y_train_full, &num_train_samples_loaded,
-                            &X_test_float, &Y_test_full, &num_test_samples_loaded);
+    split_iris(&X_train_float, &Y_train_full, &num_train_samples_loaded,
+        &X_test_float, &Y_test_full, &num_test_samples_loaded);
+
+    // // num_test_samples_loaded = 15;
+    // // num_train_samples_loaded = 135;
+
+    // // X_train_float = malloc(num_train_samples_loaded * sizeof(int8_t*));
+    // // X_test_float = malloc(num_test_samples_loaded * sizeof(int8_t*));
+
+    // // for (lsize_t i = 0; i < num_train_samples_loaded; ++i) {
+    // //     X_train_float[i] = calloc(IRIS_INPUT_SIZE, sizeof(int8_t));
+    // //     // memcpy(X_train_float[i], iris_X[i], IRIS_INPUT_SIZE * sizeof(int8_t));
+    // // }
+
+    // // for (lsize_t i = 0; i < num_test_samples_loaded; ++i) {
+    // //     X_test_float[i] = calloc(IRIS_INPUT_SIZE, sizeof(int8_t));
+    // //     // memcpy(X_test_float[i], iris_X[i + num_train_samples_loaded], IRIS_INPUT_SIZE * sizeof(int8_t));
+    // // }
+
+    // // memcpy(Y_train_full.vector, iris_Y, num_train_samples_loaded * sizeof(int8_t));
+    // // Y_train_full.length = num_train_samples_loaded;
+    // // Y_train_full.scale = 0;
+
+    // // memcpy(Y_test_full.vector, iris_Y + num_train_samples_loaded, num_test_samples_loaded * sizeof(int8_t));
+    // // Y_test_full.length = num_test_samples_loaded;
+    // // Y_test_full.scale = 0;
+
 
     if (num_train_samples_loaded == 0 || num_test_samples_loaded == 0) {
         free_v8(&Y_train_full);
