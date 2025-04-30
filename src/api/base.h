@@ -3,7 +3,7 @@
 
 #include <stdlib.h>
 #include <stdint.h>
-// #include <math.h>
+#include <math.h>
 
 // #undef NES
 
@@ -20,26 +20,27 @@
 // Linear size
 typedef uint8_t lsize_t;
 #define DEBUG_LOG_LEVEL 0
-#define PRINT_ALLOWED 0
-#define print(...)
-#define print_num(num)
-#define print_pair(n1, n2)
-#define println(...)
-// #define fprintf(out, fmt ...)
+// #define PRINT_ALLOWED 0
+// #define print(...)
+// #define print_num(num)
+// #define print_pair(n1, n2)
+// #define println(...)
+// // #define fprintf(out, fmt ...)
 #define print_counter(name)
 #else
 #define urand8() rand() % 256
 #define urand16() rand() % 65536
-typedef uint32_t lsize_t;
+#define print_counter(name) static int count_##name = 0; log(#name ": %d", ++count_##name);
 #define DEBUG_LOG_LEVEL 1 // 0 = Off, 1 = Basic Logs, 2 = Verbose Logs
+typedef uint32_t lsize_t;
+#endif
+
 #define PRINT_ALLOWED 1
 #define print(fmt, ...) printf(fmt, ##__VA_ARGS__)
 #define print_num(num) print("%d\n", num)
 #define print_pair(n1, n2) print("(%d, %d)\n", n1, n2)
 #define println(fmt, ...) print(fmt "\n", ##__VA_ARGS__)
-#define print_counter(name) static int count_##name = 0; log(#name ": %d", ++count_##name);
 #define LOG_LIST_CAPACITY 100
-#endif
 
 #define rand8() urand8() - 128
 #define rand16() urand16() - 32768
@@ -136,8 +137,6 @@ if (strcmp(VERBOSE_NAME, #name) == 0) { \
 #define abs(value) (value < 0 ? - value : value)
 #define sign(value) ((value > 0) - (value < 0))
 
-void print_metrics();
-
 #define STR_(x) #x
 #define GET_INT_STR(x) STR_(x)
 
@@ -156,6 +155,18 @@ insert(__FILE__ ":" GET_INT_STR(__LINE__), get(__FILE__ ":" GET_INT_STR(__LINE__
 #define print(...)
 #undef fatal
 #define fatal(...)
+#else
+#define __bank(bank)
 #endif
+
+__bank(2) void print_metrics();
+
+__bank(2) void print_heap_bounds(void);
+
+// extern size_t stack_usage;
+
+// extern size_t __heap;
+
+// #define log1(fmt, ...) printf("INFO [%s:%d] " fmt "\n", __FILE__, __LINE__, ##__VA_ARGS__)
 
 #endif

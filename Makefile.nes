@@ -7,15 +7,17 @@ LD65        := ld65
 # Target system for cc65
 CC65_TARGET := nes
 
+SRC_DIR	:= src
+
 # --- NES Source Files ---
 # Define your core API and NES implementation sources here
-API_SRC          := $(wildcard src/api/*.c)
-NES_IMPL_SRC     := $(wildcard src/nes/*.c)
+API_SRC          := $(wildcard $(SRC_DIR)/api/*.c)
+NES_IMPL_SRC     := $(wildcard $(SRC_DIR)/nes/*.c)
 
 # Assume your core NES C code is in src/api and src/nes
 # You might need platform-specific code too
-NES_PLATFORM_SRC := $(wildcard src/platform/nes/*.c)
-NES_ASM_SRC      := $(wildcard src/platform/nes/*.s) # Add assembly files
+NES_PLATFORM_SRC := $(wildcard $(SRC_DIR)/platform/nes/*.c)
+NES_ASM_SRC      := $(wildcard $(SRC_DIR)/platform/nes/*.s) # Add assembly files
 # ... rest of the section ...
 
 
@@ -30,8 +32,8 @@ ROM_NAME    := build/nes/my_network.nes
 # --- NES Source Files ---
 # Assume your core NES C code is in src/api and src/nes
 # You might need platform-specific code too
-NES_PLATFORM_SRC := $(wildcard src/platform/nes/*.c)
-NES_ASM_SRC      := $(wildcard src/platform/nes/*.s) # Add assembly files
+NES_PLATFORM_SRC := $(wildcard $(SRC_DIR)/platform/nes/*.c)
+NES_ASM_SRC      := $(wildcard $(SRC_DIR)/platform/nes/*.s) # Add assembly files
 
 # Combine API (compiled with -DNES) and your NES implementation
 NES_C_SRC        := $(API_SRC) $(NES_IMPL_SRC) $(NES_PLATFORM_SRC)
@@ -41,8 +43,8 @@ NES_C_SRC        := $(API_SRC) $(NES_IMPL_SRC) $(NES_PLATFORM_SRC)
 OBJDIR_NES_CC65  := obj/nes_cc65
 
 # Generate object file names
-NES_C_OBJ        := $(patsubst src/%.c,$(OBJDIR_NES_CC65)/%.o,$(NES_C_SRC))
-NES_ASM_OBJ      := $(patsubst src/%.s,$(OBJDIR_NES_CC65)/%.o,$(NES_ASM_SRC))
+NES_C_OBJ        := $(patsubst $(SRC_DIR)/%.c,$(OBJDIR_NES_CC65)/%.o,$(NES_C_SRC))
+NES_ASM_OBJ      := $(patsubst $(SRC_DIR)/%.s,$(OBJDIR_NES_CC65)/%.o,$(NES_ASM_SRC))
 NES_ALL_OBJ      := $(NES_C_OBJ) $(NES_ASM_OBJ)
 
 # --- NES Build Flags ---
@@ -50,7 +52,7 @@ NES_ALL_OBJ      := $(NES_C_OBJ) $(NES_ASM_OBJ)
 # -Oirs: Optimizations (register usage, inline subs, code size) - common for cc65
 # -I flags: Include paths
 # -D flags: Preprocessor defines (NES=1 is often implicit with -t nes, but -DNES=1 is safer)
-CFLAGS_NES       := -t $(CC65_TARGET) -Oirs -I src/api -I src/nes -I src/platform/nes -DNES=1
+CFLAGS_NES       := -t $(CC65_TARGET) -Oirs -I $(SRC_DIR)/api -I $(SRC_DIR)/nes -I $(SRC_DIR)/platform/nes -DNES=1 --standard c99
 ASFLAGS_NES      := --cpu 6502 # Specify CPU for assembler
 
 # --- NES Build Rules ---
@@ -67,12 +69,12 @@ $(ROM_NAME): $(NES_ALL_OBJ) | $(dir $(ROM_NAME))
 	# $(CC65) $(CFLAGS_NES) -o $@ $^
 
 # Rule to compile NES C source files
-$(OBJDIR_NES_CC65)/%.o: src/%.c | $(OBJDIR_NES_CC65)
+$(OBJDIR_NES_CC65)/%.o: $(SRC_DIR)/%.c | $(OBJDIR_NES_CC65)
 	@echo "Compiling (NES C) $< -> $@"
 	$(CC65) $(CFLAGS_NES) -c $< -o $@
 
 # Rule to assemble NES assembly source files
-$(OBJDIR_NES_CC65)/%.o: src/%.s | $(OBJDIR_NES_CC65)
+$(OBJDIR_NES_CC65)/%.o: $(SRC_DIR)/%.s | $(OBJDIR_NES_CC65)
 	@echo "Assembling (NES ASM) $< -> $@"
 	$(CA65) $(ASFLAGS_NES) $< -o $@
 

@@ -12,7 +12,7 @@
 #define IRIS_NUM_CLASSES 3      // Iris-setosa, Iris-versicolor, Iris-virginica
 #define IRIS_TOTAL_SAMPLES 150
 #define MAX_LINE_LENGTH 255     // Reduced, but still generous
-#define TRAIN_SPLIT_RATIO 90   // for training, in %
+#define TRAIN_SPLIT_RATIO 80   // for training, in %
 
 #define IRIS_DATA_FILE "data/iris/iris-nes.data"
 
@@ -22,7 +22,7 @@
 
 // --- Hyperparameters (Adjusted for Iris) ---
 #define BATCH_SIZE 16           // Smaller batch size for smaller dataset
-#define HIDDEN_NEURONS 32       // Reduced hidden layer size
+#define HIDDEN_NEURONS 64       // Reduced hidden layer size
 #define NUM_EPOCHS 10           // May need more epochs for convergence
 #define LEARNING_RATE_MU 4      // Keep for now, might need tuning
 
@@ -167,7 +167,9 @@ void split_iris(int8_t*** X_train, Vector8* Y_train, lsize_t* train_count, int8_
 
     *X_train = malloc(*train_count * sizeof(int8_t*));
     assert_fatal(*X_train, "Memory allocation failed for X_train pointers");
+
     for (lsize_t i = 0; i < *train_count; ++i) {
+        // printf("%d\n", i);
         (*X_train)[i] = malloc(IRIS_INPUT_SIZE * sizeof(int8_t));
         assert_fatal((*X_train)[i], "Memory allocation failed for X_train sample %u", i);
         for (lsize_t j = 0; j < IRIS_INPUT_SIZE; ++j) {
@@ -200,12 +202,25 @@ void split_iris(int8_t*** X_train, Vector8* Y_train, lsize_t* train_count, int8_
     free(indices);
 }
 
+// int main(void) {
+//     printf("%d", 1);
+// }
+
+#ifdef VBCC
+#define MMC3_PRG_RAM_CTRL (*(volatile uint8_t*)0xA001)
+#endif
+
 int main(void) {
+    #ifdef VBCC
+    MMC3_PRG_RAM_CTRL = 0x80;
+    #endif
     init_pools();
     set_mu(LEARNING_RATE_MU); // Set global learning rate parameter
     // srand(time(NULL)); // Seeding is now done before shuffling in load function
 
-    // println("--- C Implementation Configuration (Iris Dataset) ---");
+    print_heap_bounds();
+
+    println("--- C Implementation Configuration (Iris Dataset) ---");
     println("Input Size: %d", IRIS_INPUT_SIZE);
     println("Number of Classes: %d", IRIS_NUM_CLASSES);
     println("Using learning rate parameter mu = %d", LEARNING_RATE_MU);
@@ -218,6 +233,19 @@ int main(void) {
     println("Initializing Iris Classification Test (C)...");
     println("Allocating memory for labels...");
 
+    // printf("--- C Implementation Configuration (Iris Dataset) ---\n");
+    // printf("Input Size: %d\n", IRIS_INPUT_SIZE);
+    // printf("Number of Classes: %d\n", IRIS_NUM_CLASSES);
+    // printf("Using learning rate parameter mu = %d\n", LEARNING_RATE_MU);
+    // printf("Batch Size: %d\n", BATCH_SIZE);
+    // printf("Target BITWIDTH = %d\n", BITWIDTH);
+    // printf("Hidden Neurons: %d\n", HIDDEN_NEURONS);
+    // printf("Epochs: %d\n", NUM_EPOCHS);
+    // printf("Train/Test Split: %d%% / %d%%\n", TRAIN_SPLIT_RATIO, 100 - TRAIN_SPLIT_RATIO);
+    // printf("----------------------------------------------------\n");
+    // printf("Initializing Iris Classification Test (C)...\n");
+    // printf("Allocating memory for labels...\n");
+
     // Y_train_full = init_v8(135);
     // Y_test_full = init_v8(15);
 
@@ -228,29 +256,79 @@ int main(void) {
     split_iris(&X_train_float, &Y_train_full, &num_train_samples_loaded,
         &X_test_float, &Y_test_full, &num_test_samples_loaded);
 
-    // // num_test_samples_loaded = 15;
-    // // num_train_samples_loaded = 135;
+    // num_train_samples_loaded = (int16_t) IRIS_SAMPLES * (int16_t) TRAIN_SPLIT_RATIO / (int16_t) 100;
+    // num_test_samples_loaded = IRIS_SAMPLES - num_train_samples_loaded;
 
-    // // X_train_float = malloc(num_train_samples_loaded * sizeof(int8_t*));
-    // // X_test_float = malloc(num_test_samples_loaded * sizeof(int8_t*));
+    // uint8_t* indices = malloc(IRIS_TOTAL_SAMPLES * sizeof(uint8_t));
+    // for (uint8_t i = 0; i < IRIS_TOTAL_SAMPLES; ++i) {
+    //     indices[i] = i;
+    // }
+    // shuffle_indices(indices, IRIS_TOTAL_SAMPLES);
 
-    // // for (lsize_t i = 0; i < num_train_samples_loaded; ++i) {
-    // //     X_train_float[i] = calloc(IRIS_INPUT_SIZE, sizeof(int8_t));
-    // //     // memcpy(X_train_float[i], iris_X[i], IRIS_INPUT_SIZE * sizeof(int8_t));
+    // X_train_float = malloc(num_train_samples_loaded * sizeof(int8_t*));
+    // assert_fatal(X_train_float, "Memory allocation failed for X_train pointers");
+    // for (lsize_t i = 0; i < 10; ++i) {
+    //     // (X_train_float)[i] = malloc(IRIS_INPUT_SIZE * sizeof(int8_t));
+    //     (X_train_float)[i] = malloc(4);
+    //     // printf("%d ", X_train_float[i]);
+    //     // assert_fatal((X_train_float)[i], "Memory allocation failed for X_train sample %u", i);
+    //     printf(" ");
+    //     for (lsize_t j = 0; j < IRIS_INPUT_SIZE; ++j) {
+    //         (X_train_float)[i][j] = iris_X[indices[i]][j];
+    //         printf("%d: %d; ", (X_train_float)[i][j], iris_X[indices[i]][j]);
+    //     }
+    //     printf("\n");
+    // }
+
+    // // *Y_train = init_v8(*train_count);
+    // // for (lsize_t i = 0; i < *train_count; ++i) {
+    // //     (*Y_train).vector[i] = iris_Y[indices[i]];
+    // // }
+    // // Y_train->scale = 0;
+
+    // // *X_test = malloc(*test_count * sizeof(int8_t*));
+    // // assert_fatal(*X_test, "Memory allocation failed for X_test pointers");
+    // // for (lsize_t i = 0; i < *test_count; ++i) {
+    // //     (*X_test)[i] = malloc(IRIS_INPUT_SIZE * sizeof(int8_t));
+    // //     assert_fatal((*X_test)[i], "Memory allocation failed for X_test sample %u", i);
+    // //     for (lsize_t j = 0; j < IRIS_INPUT_SIZE; ++j) {
+    // //         (*X_test)[i][j] = iris_X[indices[i + *train_count]][j];
+    // //     }
     // // }
 
-    // // for (lsize_t i = 0; i < num_test_samples_loaded; ++i) {
-    // //     X_test_float[i] = calloc(IRIS_INPUT_SIZE, sizeof(int8_t));
-    // //     // memcpy(X_test_float[i], iris_X[i + num_train_samples_loaded], IRIS_INPUT_SIZE * sizeof(int8_t));
+    // // *Y_test = init_v8(*test_count);
+    // // for (lsize_t i = 0; i < *test_count; ++i) {
+    // //     (*Y_test).vector[i] = iris_Y[indices[i + *train_count]];
     // // }
+    // // Y_test->scale = 0;
 
-    // // memcpy(Y_train_full.vector, iris_Y, num_train_samples_loaded * sizeof(int8_t));
-    // // Y_train_full.length = num_train_samples_loaded;
-    // // Y_train_full.scale = 0;
+    // // free(indices);
 
-    // // memcpy(Y_test_full.vector, iris_Y + num_train_samples_loaded, num_test_samples_loaded * sizeof(int8_t));
-    // // Y_test_full.length = num_test_samples_loaded;
-    // // Y_test_full.scale = 0;
+    // // printf("3");
+
+    // // // // num_test_samples_loaded = 15;
+    // // // // num_train_samples_loaded = 135;
+
+    // // // // X_train_float = malloc(num_train_samples_loaded * sizeof(int8_t*));
+    // // // // X_test_float = malloc(num_test_samples_loaded * sizeof(int8_t*));
+
+    // // // // for (lsize_t i = 0; i < num_train_samples_loaded; ++i) {
+    // // // //     X_train_float[i] = calloc(IRIS_INPUT_SIZE, sizeof(int8_t));
+    // // // //     // memcpy(X_train_float[i], iris_X[i], IRIS_INPUT_SIZE * sizeof(int8_t));
+    // // // // }
+
+    // // // // for (lsize_t i = 0; i < num_test_samples_loaded; ++i) {
+    // // // //     X_test_float[i] = calloc(IRIS_INPUT_SIZE, sizeof(int8_t));
+    // // // //     // memcpy(X_test_float[i], iris_X[i + num_train_samples_loaded], IRIS_INPUT_SIZE * sizeof(int8_t));
+    // // // // }
+
+    // // // // memcpy(Y_train_full.vector, iris_Y, num_train_samples_loaded * sizeof(int8_t));
+    // // // // Y_train_full.length = num_train_samples_loaded;
+    // // // // Y_train_full.scale = 0;
+
+    // // // // memcpy(Y_test_full.vector, iris_Y + num_train_samples_loaded, num_test_samples_loaded * sizeof(int8_t));
+    // // // // Y_test_full.length = num_test_samples_loaded;
+    // // // // Y_test_full.scale = 0;
 
 
     if (num_train_samples_loaded == 0 || num_test_samples_loaded == 0) {
@@ -272,6 +350,7 @@ int main(void) {
     }
 
     println("Network created successfully.");
+    printf("Network created successfully.\n");
     train_network(network,
                 &X_train_float, &Y_train_full, num_train_samples_loaded,
                 &X_test_float, &Y_test_full, num_test_samples_loaded,
@@ -281,6 +360,7 @@ int main(void) {
                     &X_test_float, &Y_test_full, num_test_samples_loaded);
 
     println("Iris Classification Test Finished (C).");
+    printf("Iris Classification Test Finished (C).\n");
 
     print_metrics();
 

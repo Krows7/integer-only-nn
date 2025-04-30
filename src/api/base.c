@@ -5,7 +5,7 @@
 
 LogList log_list = {(uint32_t*[LOG_LIST_CAPACITY]){ NULL }, (char*[LOG_LIST_CAPACITY]){ NULL }, 0, LOG_LIST_CAPACITY};
 
-void add_log_entry(char key[], uint32_t* value) {
+__bank(2) void add_log_entry(char key[], uint32_t* value) {
     if (log_list.size == log_list.capacity) {
         error("LogList capacity reached");
     }
@@ -15,9 +15,22 @@ void add_log_entry(char key[], uint32_t* value) {
 
 #endif
 
-void print_metrics() {
+__bank(2) void print_metrics() {
     #if ALLOW_LINEAR_VERBOSE > 0
     log("Linear Math Metrics:");
     print_log_entries();
     #endif
 }
+
+#ifdef VBCC
+extern char __heap;
+extern char __heapend;
+
+__bank(2) void print_heap_bounds(void) {
+    printf("Heap start @ %p\n", &__heap);
+    printf("Heap   end @ %p\n", &__heapend);
+}
+#else
+__bank(2) void print_heap_bounds(void) {
+}
+#endif

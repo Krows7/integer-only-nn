@@ -100,7 +100,7 @@ Pool8* create_pool_8(lsize_t capacity) {
 
 Pool8* m8_pool = NULL;
 
-void init_pools() {
+__bank(2) void init_pools() {
     m_pool = create_pool_32(M32_CAPACITY);
     m8_pool = create_pool_8(M8_CAPACITY);
 }
@@ -126,7 +126,7 @@ void init_pools() {
 
 // }
 
-void lin_cleanup() {
+__bank(2) void lin_cleanup() {
     free(m_pool->reserved);
     for (lsize_t i = 0; i < m_pool->size; i++) {
         for (lsize_t j = 0; j < m_pool->matrices[i]->width; ++j) {
@@ -150,7 +150,7 @@ void lin_cleanup() {
     free(m8_pool);
 }
 
-Matrix8 init_m8_(lsize_t width, lsize_t height) {
+__bank(2) Matrix8 init_m8_(lsize_t width, lsize_t height) {
     int8_t** matrix = malloc(width * sizeof(int8_t*));
     for (lsize_t i = 0; i < width; ++i) {
         matrix[i] = malloc(height * sizeof(int8_t));
@@ -163,7 +163,7 @@ Matrix8 init_m8_(lsize_t width, lsize_t height) {
     return result;
 }
 
-Matrix8 init_m8(lsize_t width, lsize_t height) {
+__bank(2) Matrix8 init_m8(lsize_t width, lsize_t height) {
     count_inc(d_request_m8);
     if (m8_pool->size < m8_pool->capacity) {
         m8_pool->reserved[m8_pool->size] = 1;
@@ -219,7 +219,7 @@ Matrix8 init_m8(lsize_t width, lsize_t height) {
     return init_m8_(width, height);
 }
 
-void free_m8(Matrix8* m) {
+__bank(2) void free_m8(Matrix8* m) {
     if (!m || !m->matrix) return;
     for (lsize_t i = 0; i < m8_pool->size; i++) {
         if (m8_pool->matrices[i]->matrix == m->matrix) {
@@ -239,7 +239,7 @@ void free_m8(Matrix8* m) {
     count_inc(d_m8_free);
 }
 
-void print_matrix8(const Matrix8* m, char* name) {
+__bank(2) void print_matrix8(const Matrix8* m, char* name) {
     print("[%s] Matrix:\n[", name);
     for (lsize_t i = 0; i < m->width; ++i) {
         print("[");
@@ -255,7 +255,7 @@ void print_matrix8(const Matrix8* m, char* name) {
     count_inc(d_m8_print);
 }
 
-Matrix32 init_m32_(lsize_t width, lsize_t height) {
+__bank(2) Matrix32 init_m32_(lsize_t width, lsize_t height) {
     int32_t** matrix = malloc(width * sizeof(int32_t*));
     for (lsize_t i = 0; i < width; ++i) {
         matrix[i] = malloc(height * sizeof(int32_t));
@@ -273,7 +273,7 @@ Matrix32 init_m32_(lsize_t width, lsize_t height) {
 // #endif
 
 // ------------ Matrix32 ------------
-Matrix32 init_m32(lsize_t width, lsize_t height) {
+__bank(2) Matrix32 init_m32(lsize_t width, lsize_t height) {
     count_inc(d_request_m32);
     if (m_pool->size < m_pool->capacity) {
         m_pool->reserved[m_pool->size] = 1;
@@ -339,7 +339,7 @@ Matrix32 init_m32(lsize_t width, lsize_t height) {
     // return result;
 }
 
-void free_m32(Matrix32* m) {
+__bank(2) void free_m32(Matrix32* m) {
     if (!m || !m->matrix) return;
     for (lsize_t i = 0; i < m_pool->size; i++) {
         if (m_pool->matrices[i]->matrix == m->matrix) {
@@ -359,7 +359,7 @@ void free_m32(Matrix32* m) {
     count_inc(d_m32_free);
 }
 
-void print_matrix32(const Matrix32* m, char* name) {
+__bank(2) void print_matrix32(const Matrix32* m, char* name) {
     print("[%s] Matrix:\n[", name);
     for (lsize_t i = 0; i < m->width; ++i) {
         print("[");
@@ -378,7 +378,7 @@ void print_matrix32(const Matrix32* m, char* name) {
 
 // ------------ Vector8 ------------
 
-Vector8 init_v8(lsize_t length) {
+__bank(2) Vector8 init_v8(lsize_t length) {
     int8_t* vector = malloc(length * sizeof(int8_t));
     if (vector == NULL) return (Vector8){NULL, 0, 0};
     Vector8 result;
@@ -388,7 +388,7 @@ Vector8 init_v8(lsize_t length) {
     return result;
 }
 
-void free_v8(Vector8* v) {
+__bank(2) void free_v8(Vector8* v) {
     if (!v || !v->vector) return;
     free(v->vector);
     v->vector = NULL;
@@ -397,7 +397,7 @@ void free_v8(Vector8* v) {
     count_inc(d_v8_free);
 }
 
-void print_vector8(const Vector8* v, char* name) {
+__bank(2) void print_vector8(const Vector8* v, char* name) {
     print("[%s] Vector: [", name);
     for (uint8_t i = 0; i < v->length; ++i) {
         if (i == v->length - 1) print("%d", v->vector[i]);
@@ -411,7 +411,7 @@ void print_vector8(const Vector8* v, char* name) {
 
 // ------------ Matrix Operations ------------
 
-void mul8(const Matrix8* A, const Matrix8* B, Matrix32* C) {
+__bank(2) void mul8(const Matrix8* A, const Matrix8* B, Matrix32* C) {
     if (A->height != B->width) {
         println("Error: A->height != B->width: (%d != %d)", A->height, B->width);
         println("A: (%d, %d)", A->width, A->height);
@@ -439,14 +439,14 @@ void mul8(const Matrix8* A, const Matrix8* B, Matrix32* C) {
     count_inc(d_mul8);
 }
 
-Matrix32 get_mul8(const Matrix8* A, const Matrix8* B) {
+__bank(2) Matrix32 get_mul8(const Matrix8* A, const Matrix8* B) {
     Matrix32 C = init_m32(A->width, B->height);
     mul8(A, B, &C);
     count_inc(d_get_mul8);
     return C;
 }
 
-Matrix32 get_mul32(const Matrix32* A, const Matrix8* B) {
+__bank(2) Matrix32 get_mul32(const Matrix32* A, const Matrix8* B) {
     Matrix32 C = init_m32(A->width, B->height);
     for (lsize_t i = 0; i < A->width; ++i) {
         for (lsize_t j = 0; j < B->height; ++j) {
@@ -461,7 +461,7 @@ Matrix32 get_mul32(const Matrix32* A, const Matrix8* B) {
     return C;
 }
 
-Matrix32 to_mat32(const Matrix8* m) {
+__bank(2) Matrix32 to_mat32(const Matrix8* m) {
     Matrix32 result = init_m32(m->width, m->height);
     for (lsize_t i = 0; i < m->width; ++i) {
         for (lsize_t j = 0; j < m->height; ++j) {
@@ -473,7 +473,7 @@ Matrix32 to_mat32(const Matrix8* m) {
     return result;
 }
 
-void sub8(const Matrix8* M, const Matrix8* sub) {
+__bank(2) void sub8(const Matrix8* M, const Matrix8* sub) {
     if (M->width != sub->width || M->height != sub->height) {
         println("Error in sub8: Matrix dimensions do not match.");
         println("M shape: (%d, %d), sub shape: (%d, %d)", M->width, M->height, sub->width, sub->height);
@@ -489,7 +489,7 @@ void sub8(const Matrix8* M, const Matrix8* sub) {
 }
 
 // A must be transposed in product
-void mul8_1t(const Matrix8* A_T, const Matrix8* B, Matrix32* C) {
+__bank(2) void mul8_1t(const Matrix8* A_T, const Matrix8* B, Matrix32* C) {
     if (A_T->width != B->width) {
         println("Error: A_T->width != B->width: (%d != %d)", A_T->width, B->width);
         println("A_T: (%d, %d)", A_T->width, A_T->height);
@@ -517,7 +517,7 @@ void mul8_1t(const Matrix8* A_T, const Matrix8* B, Matrix32* C) {
     count_inc(d_mul8_1t);
 }
 
-Matrix32 get_mul8_1t(const Matrix8* A_T, const Matrix8* B) {
+__bank(2) Matrix32 get_mul8_1t(const Matrix8* A_T, const Matrix8* B) {
     Matrix32 C = init_m32(A_T->height, B->height);
     mul8_1t(A_T, B, &C);
     count_inc(d_get_mul8_1t);
@@ -525,7 +525,7 @@ Matrix32 get_mul8_1t(const Matrix8* A_T, const Matrix8* B) {
 }
 
 // B must be transposed in product
-void mul8_2t(const Matrix8* A, const Matrix8* B_T, Matrix32* C) {
+__bank(2) void mul8_2t(const Matrix8* A, const Matrix8* B_T, Matrix32* C) {
     if (A->height != B_T->height) {
         println("Error: A->height != B_T->height: (%d != %d)", A->height, B_T->height);
         println("A: (%d, %d)", A->width, A->height);
@@ -540,19 +540,25 @@ void mul8_2t(const Matrix8* A, const Matrix8* B_T, Matrix32* C) {
         return;
     }
 
+    // uint8_t rr = 0;
+
     for (lsize_t i = 0; i < A->width; ++i) {
         for (lsize_t j = 0; j < B_T->width; ++j) {
             C->matrix[i][j] = 0;
+            int8_t* Ak = A->matrix[i];
+            int8_t* Bk = B_T->matrix[j];
             for (lsize_t k = 0; k < A->height; k++) {
-                C->matrix[i][j] += A->matrix[i][k] * B_T->matrix[j][k];
+                // if (++rr == 255) printf("%d %d %d %d %d %d\n", i, A->width, j, B_T->width, k, A->height);
+                C->matrix[i][j] += Ak[k] * Bk[k];
             }
         }
     }
+    // printf("dd\n");
     C->scale = A->scale + B_T->scale;
     count_inc(d_mul8_2t);
 }
 
-Matrix32 get_mul8_2t(const Matrix8* A, const Matrix8* B_T) {
+__bank(2) Matrix32 get_mul8_2t(const Matrix8* A, const Matrix8* B_T) {
     // log("%d %d", A->width, B_T->width);
     // if (!pool) pool = malloc(sizeof(Matrix32*));
     // Matrix32 C;
@@ -577,9 +583,12 @@ Matrix32 get_mul8_2t(const Matrix8* A, const Matrix8* B_T) {
     // } else {
     //     C = init_m32(A->width, B_T->width);
     // }
-
+    // printf("aaa\n");
     Matrix32 C = init_m32(A->width, B_T->width);
+    // printf("bbb\n");
+    // printf("bbb\n");
     mul8_2t(A, B_T, &C);
+    // printf("ccc\n");
     count_inc(d_get_mul8_2t);
     return C;
 }
@@ -590,7 +599,7 @@ Matrix32 get_mul8_2t(const Matrix8* A, const Matrix8* B_T) {
 
 // ------------ Other ------------
 
-uint8_t ceil_log_2(int32_t value) {
+__bank(2) uint8_t ceil_log_2(int32_t value) {
     uint8_t result = 1;
     while (value > 1) {
         value >>= 1;
@@ -600,7 +609,7 @@ uint8_t ceil_log_2(int32_t value) {
     return result;
 }
 
-void relu8(const Matrix8* m) {
+__bank(2) void relu8(const Matrix8* m) {
     for (lsize_t i = 0; i < m->width; ++i) {
         for (lsize_t j = 0; j < m->height; ++j) {
             if (m->matrix[i][j] < 0) {
@@ -611,7 +620,7 @@ void relu8(const Matrix8* m) {
     count_inc(d_relu8);
 }
 
-uint8_t effective_bitwidth(const Matrix32* matrix) {
+__bank(2) uint8_t effective_bitwidth(const Matrix32* matrix) {
     int32_t max_value = 0;
     for (lsize_t i = 0; i < matrix->width; ++i) {
         for (lsize_t j = 0; j < matrix->height; ++j) {

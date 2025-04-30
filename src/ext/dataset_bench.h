@@ -16,6 +16,8 @@ Network* create_network(lsize_t layers_size, LayerType* kinds, lsize_t* sizes, l
 
 void evaluate(Network* network, float*** X_test, Vector8* Y_test, lsize_t num_test_samples);
 
+void evaluate_full(Network* network, float*** X_test, Vector8* Y_test, lsize_t num_test_samples, float*** X_train, Vector8* Y_train, lsize_t num_train_samples);
+
 void train_network(Network* network, float*** X_train, Vector8* Y_train, lsize_t train_samples_size, float*** X_test, Vector8* Y_test, lsize_t test_samples_size, uint32_t epochs);
 
 void cleanup(Network* network, float*** X_train, Vector8* Y_train, lsize_t train_samples_size, float*** X_test, Vector8* Y_test, lsize_t test_samples_size);

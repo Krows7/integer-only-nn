@@ -89,6 +89,74 @@ void evaluate(Network* network, float*** X_test, Vector8* Y_test, lsize_t num_te
     printf("Accuracy on test set: %.2f%% (%d / %d correct)\n", accuracy, correct_predictions, samples_processed);
 }
 
+void evaluate_full(Network* network, float*** X_test, Vector8* Y_test, lsize_t num_test_samples, float*** X_train, Vector8* Y_train, lsize_t num_train_samples) {
+    lsize_t batch_size = network->batch_size;
+    lsize_t input_size = network->layers[0]->weights.height;
+    printf("\n--- Evaluating Network (C) ---\n");
+    if (num_test_samples == 0) {
+        printf("No test samples loaded. Skipping evaluation.\n");
+        return;
+    }
+
+    int correct_predictions = 0;
+    int samples_processed = 0;
+
+    Matrix8 x_batch;
+    Vector8 y_batch;
+
+    for (lsize_t sample_idx = 0; sample_idx < num_test_samples; sample_idx += batch_size) {
+        lsize_t current_batch_size = (sample_idx + batch_size <= num_test_samples) ? batch_size : (num_test_samples - sample_idx);
+
+        load_batch(X_test, Y_test, &x_batch, &y_batch, sample_idx, current_batch_size, input_size);
+
+        Vector8* predicted = predict(network, &x_batch);
+
+        for (lsize_t k = 0; k < current_batch_size; ++k) {
+            if (predicted->vector[k] == y_batch.vector[k]) {
+                correct_predictions++;
+            }
+        }
+        samples_processed += current_batch_size;
+
+        free_v8(predicted);
+        free(predicted);
+        free_m8(&x_batch);
+        free_v8(&y_batch);
+    }
+
+    double accuracy = (samples_processed > 0) ? (double)correct_predictions / samples_processed * 100.0 : 0.0;
+
+    printf("Evaluation Complete.\n");
+    printf("Accuracy on test set: %.2f%% (%d / %d correct)\n", accuracy, correct_predictions, samples_processed);
+
+    correct_predictions = 0;
+    samples_processed = 0;
+
+    for (lsize_t sample_idx = 0; sample_idx < num_train_samples; sample_idx += batch_size) {
+        lsize_t current_batch_size = (sample_idx + batch_size <= num_train_samples) ? batch_size : (num_train_samples - sample_idx);
+
+        load_batch(X_train, Y_train, &x_batch, &y_batch, sample_idx, current_batch_size, input_size);
+
+        Vector8* predicted = predict(network, &x_batch);
+
+        for (lsize_t k = 0; k < current_batch_size; ++k) {
+            if (predicted->vector[k] == y_batch.vector[k]) {
+                correct_predictions++;
+            }
+        }
+        samples_processed += current_batch_size;
+
+        free_v8(predicted);
+        free(predicted);
+        free_m8(&x_batch);
+        free_v8(&y_batch);
+    }
+
+    accuracy = (samples_processed > 0) ? (double)correct_predictions / samples_processed * 100.0 : 0.0;
+
+    printf("Accuracy on train set: %.2f%% (%d / %d correct)\n", accuracy, correct_predictions, samples_processed);
+}
+
 void print_loss(Matrix8* loss) {
     int32_t sum = 0;
     for (lsize_t i = 0; i < loss->width; ++i) {
@@ -153,7 +221,8 @@ void train_network(Network* network, float*** X_train, Vector8* Y_train, lsize_t
 
         // printf("Loss [Sum: %d; Mean: %d (Scale = %d)]\n", loss_sum, loss_sum / (int32_t) (train_samples_size * network->layers[network->num_layers - 1]->activations.height), 0);
 
-        evaluate(network, X_test, Y_test, test_samples_size);
+        // evaluate(network, X_test, Y_test, test_samples_size);
+        evaluate_full(network, X_test, Y_test, test_samples_size, X_train, Y_train, train_samples_size);
     }
 
     printf("\n--- Training Finished (C) ---\n");
