@@ -2,6 +2,7 @@
 build/
 obj/
 logs/
+logs/*
 ./*.nes
 mapfile
 data/**/*
