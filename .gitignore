@@ -4,3 +4,5 @@ obj/
 data/**/*
 !data/**/
 logs/
+*.nes
+mapfile
