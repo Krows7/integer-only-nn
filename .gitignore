@@ -1,8 +1,8 @@
 .cache/
 build/
 obj/
+logs/
+./*.nes
+mapfile
 data/**/*
 !data/**/
-logs/
-*.nes
-mapfile
