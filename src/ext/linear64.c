@@ -1,6 +1,5 @@
 #include "linear64.h"
 #include <inttypes.h>
-#include <stdio.h>
 
 // ------------ Matrix64 ------------
 

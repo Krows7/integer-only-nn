@@ -6,3 +6,6 @@ logs/
 mapfile
 data/**/*
 !data/**/
+llvm-build/
+valgrind-logs/
+run-logs/*
