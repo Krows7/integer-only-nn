@@ -60,6 +60,19 @@ __bank(2) Matrix32 init_m32(lsize_t width, lsize_t height);
 __bank(2) void free_m32(Matrix32* m);
 __bank(2) void print_matrix32(const Matrix32* m, char* name);
 
+// #define LIN_DEBUG
+
+#ifdef LIN_DEBUG
+#define print_matrix32_d print_matrix32
+#define print_matrix8_d print_matrix8
+#define print_vector8_d print_vector8
+#else
+#define print_matrix32_d(m, n)
+#define print_matrix8_d(m, n)
+#define print_vector8_d(m, n)
+#endif
+
+
 // Vector8
 __bank(2) Vector8 init_v8(lsize_t length);
 __bank(2) void free_v8(Vector8* v);

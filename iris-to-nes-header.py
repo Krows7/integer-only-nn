@@ -5,10 +5,10 @@ import sys
 import random
 
 # --- Configuration ---
-INPUT_DATA_FILE = "data/iris/iris.data"
-OUTPUT_HEADER_FILE = "src/nes/iris-data.h"
-OUTPUT_DIR = os.path.dirname(OUTPUT_HEADER_FILE)
 SHUFFLE_SAMPLES = False
+INPUT_DATA_FILE = "data/iris/iris.data"
+OUTPUT_HEADER_FILE = "src/nes/iris-data" + "" if not SHUFFLE_SAMPLES else "-shuffled" + ".h"
+OUTPUT_DIR = os.path.dirname(OUTPUT_HEADER_FILE)
 
 # --- Data Processing Parameters ---
 FEATURE_MULTIPLIER = 10.0

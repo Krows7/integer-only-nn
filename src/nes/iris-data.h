@@ -10,7 +10,7 @@
 
 // Iris Features (X): int8_t[IRIS_SAMPLES][IRIS_FEATURES]
 // Original float values multiplied by 10.0 and rounded/clamped to int8_t.
-__bank(1) const int8_t iris_X[IRIS_SAMPLES][IRIS_FEATURES] = {
+__bank(1) __attribute__((section(".data"))) volatile const int8_t iris_X[IRIS_SAMPLES][IRIS_FEATURES] = {
     {51, 35, 14, 2},
     {49, 30, 14, 2},
     {47, 32, 13, 2},
@@ -165,7 +165,7 @@ __bank(1) const int8_t iris_X[IRIS_SAMPLES][IRIS_FEATURES] = {
 
 // Iris Class Labels (Y): int8_t[IRIS_SAMPLES]
 // Iris-setosa=0, Iris-versicolor=1, Iris-virginica=2
-__bank(1) const int8_t iris_Y[IRIS_SAMPLES] = {
+__bank(1) __attribute__((section(".data"))) volatile const int8_t iris_Y[IRIS_SAMPLES] = {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 

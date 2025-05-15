@@ -3,7 +3,6 @@
 #include "float_ops.h"
 #include "linear.h"
 #include "quantization.h"
-#include <stdio.h>
 
 // --- Dataset Constants ---
 #define INPUT_SIZE 64
