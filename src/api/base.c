@@ -1,7 +1,6 @@
 #include "base.h"
-#include <stdio.h>
 
-#ifndef NES
+#if DEBUG_LOG_LEVEL > 0 && defined(LINEAR_METRICS)
 
 LogList log_list = {(uint32_t*[LOG_LIST_CAPACITY]){ NULL }, (char*[LOG_LIST_CAPACITY]){ NULL }, 0, LOG_LIST_CAPACITY};
 
@@ -32,5 +31,21 @@ __bank(2) void print_heap_bounds(void) {
 }
 #else
 __bank(2) void print_heap_bounds(void) {
+}
+#endif
+
+#ifdef __NES__
+#include <stdlib.h>
+
+extern unsigned char __heap_start;
+extern size_t __stack;
+
+void print_heap_stats(void) {
+    // println("Heap usage: %zu/%zu bytes (%zu left)", __heap_bytes_used(), __heap_limit(), __heap_bytes_free());
+    // println("Heap start: %zu, Stack: %zu", &__heap_start, __stack);
+    // println("Heap start: %zu, Stack: %zu", &__heap_start, nes_get_soft_sp());
+}
+#else
+void print_heap_stats(void) {
 }
 #endif
