@@ -1,7 +1,7 @@
 #include "linear.h"
+#include "base.h"
 #include <inttypes.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -18,7 +18,7 @@ int size = 0; // Current number of elements in the map
 char keys[MAX_SIZE][100]; // Array to store the keys 
 int values[MAX_SIZE]; // Array to store the values 
   
-// Function to get the index of a key in the keys array 
+// Function to get the index of a key in the keys array
 int getIndex(const char key[]) 
 { 
     for (int i = 0; i < size; i++) { 
@@ -29,7 +29,7 @@ int getIndex(const char key[])
     return -1; // Key not found 
 } 
   
-// Function to insert a key-value pair into the map 
+// Function to insert a key-value pair into the map
 void insert(const char key[], int value) 
 { 
     int index = getIndex(key); 
@@ -43,7 +43,7 @@ void insert(const char key[], int value)
     } 
 } 
   
-// Function to get the value of a key in the map 
+// Function to get the value of a key in the map
 int get(const char key[]) 
 { 
     int index = getIndex(key); 
@@ -55,7 +55,7 @@ int get(const char key[])
     } 
 } 
   
-// Function to print the map 
+// Function to print the map
 void printMap() 
 { 
     for (int i = 0; i < size; i++) { 
@@ -72,7 +72,12 @@ Pool32* create_pool_32(int capacity) {
     for (int i = 0; i < capacity; i++) {
         pool->matrices[i] = malloc(sizeof(Matrix32));
     }
-    pool->reserved = calloc(sizeof(uint8_t), capacity);
+    // pool->reserved = calloc(sizeof(uint8_t), capacity);
+    // TODO Gonna replace calloc for sake of compatibility
+    pool->reserved = malloc(sizeof(uint8_t) * capacity);
+    for (lsize_t i = 0; i < capacity; i++) {
+        pool->reserved[i] = 0;
+    }
     pool->size = 0;
     pool->capacity = capacity;
     return pool;
@@ -80,7 +85,7 @@ Pool32* create_pool_32(int capacity) {
 
 #define M32_CAPACITY 20
 
-Pool32* m_pool = NULL;
+__attribute__((section(".bss"))) volatile Pool32* m_pool = NULL;
 
 // ------------ Pool8 ------------
 
@@ -90,7 +95,12 @@ Pool8* create_pool_8(lsize_t capacity) {
     for (lsize_t i = 0; i < capacity; i++) {
         pool->matrices[i] = malloc(sizeof(Matrix8));
     }
-    pool->reserved = calloc(sizeof(uint8_t), capacity);
+    // pool->reserved = calloc(sizeof(uint8_t), capacity);
+    // TODO Gonna replace calloc for sake of compatibility
+    pool->reserved = malloc(sizeof(uint8_t) * capacity);
+    for (lsize_t i = 0; i < capacity; i++) {
+        pool->reserved[i] = 0;
+    }
     pool->size = 0;
     pool->capacity = capacity;
     return pool;
@@ -98,7 +108,7 @@ Pool8* create_pool_8(lsize_t capacity) {
 
 #define M8_CAPACITY 20
 
-Pool8* m8_pool = NULL;
+__attribute__((section(".bss"))) volatile Pool8* m8_pool = NULL;
 
 __bank(2) void init_pools() {
     m_pool = create_pool_32(M32_CAPACITY);
@@ -364,8 +374,13 @@ __bank(2) void print_matrix32(const Matrix32* m, char* name) {
     for (lsize_t i = 0; i < m->width; ++i) {
         print("[");
         for (lsize_t j = 0; j < m->height; ++j) {
+            #ifndef __NES__
             if (j == m->height - 1) print("%d", m->matrix[i][j]);
             else print("%d, ", m->matrix[i][j]);
+            #else
+            if (j == m->height - 1) print("%ld", m->matrix[i][j]);
+            else print("%ld, ", m->matrix[i][j]);
+            #endif
         }
         if (i == m->width - 1) print("]");
         else println("]");
