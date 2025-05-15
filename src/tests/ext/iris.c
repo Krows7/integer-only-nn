@@ -1,5 +1,4 @@
 #include <stdint.h>
-#include <stdio.h>
 #include <stdlib.h> // Added for malloc, free, exit, srand, rand
 #include <string.h>
 #include <time.h>   // Added for srand

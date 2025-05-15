@@ -1,7 +1,6 @@
 #include "weights.h"
 #include "quantization.h"
 #include "float_ops.h"
-#include <stdio.h>
 
 // Ensure BITWIDTH is used here, matching the rest of the code
 // #define WEIGHT_QUANT_BITWIDTH 7 // Defined in header now

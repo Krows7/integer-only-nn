@@ -4,7 +4,6 @@
 #include "weights.h"
 #include <stddef.h>
 #include <stdint.h>
-#include <stdio.h>
 
 Network* create_network(lsize_t layers_size, LayerType* kinds, lsize_t* sizes, lsize_t batch_size) {
     printf("Initializing network...\n");
