@@ -13,6 +13,11 @@
 
 #define rand8() (int8_t) (urand8() - 128)
 #define rand16() (int16_t) (urand16() - 32768)
+#else
+#define urand8() rand() % 256
+#define urand16() rand() % 65536
+#define rand8() (int8_t) (urand8() - 128)
+#define rand16() (int16_t) (urand16() - 32768)
 #endif
 
 #ifdef __NES__
@@ -49,6 +54,7 @@ typedef uint32_t lsize_t;
 #define print_pair(n1, n2) print("(%d, %d)\n", n1, n2)
 #define println(fmt, ...) print(fmt "\n", ##__VA_ARGS__)
 #define LOG_LIST_CAPACITY 100
+#define PRINT_ALLOWED 1
 #endif
 
 #ifndef NO_PRINT

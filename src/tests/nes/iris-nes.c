@@ -4,8 +4,8 @@
 #include "base.h"
 #include "dataset_bench_int.h"
 #include "quantization.h"
-// #include "iris-data.h"
-#include "iris-data-shuffled.h"
+#include "iris-data.h"
+// #include "iris-data-shuffled.h"
 #include <stdlib.h>
 
 #ifdef __NES__
@@ -52,116 +52,41 @@ void shuffle_indices(uint8_t *array, size_t n) {
     }
 }
 
-
-// void load_and_split_iris(const char* filename,
-//                                int8_t*** X_train, Vector8* Y_train, lsize_t* train_count,
-//                                int8_t*** X_test, Vector8* Y_test, lsize_t* test_count)
-// {
-//     println("Loading and splitting Iris data (float) from %s...", filename);
-//     FILE* file = fopen(filename, "r");
-//     assert_fatal(file, "Error: Could not open file %s", filename);
-
-//     int8_t** all_x = malloc(IRIS_TOTAL_SAMPLES * sizeof(int8_t*));
-//     int8_t* all_Y_int = malloc(IRIS_TOTAL_SAMPLES * sizeof(int8_t));
-//     uint8_t* indices = malloc(IRIS_TOTAL_SAMPLES * sizeof(uint8_t));
-//     if (!all_x || !all_Y_int || !indices) {
-//         fclose(file);
-//         fatal("Memory allocation failed for temporary Iris data storage");
-//     }
-//     for(int i = 0; i < IRIS_TOTAL_SAMPLES; ++i) {
-//         all_x[i] = malloc(IRIS_INPUT_SIZE * sizeof(int8_t));
-//         if (!all_x[i]) {
-//             for(int j=0; j<i; ++j) free(all_x[j]);
-//             free(all_x);
-//             free(all_Y_int);
-//             free(indices);
-//             fclose(file);
-//             fatal("Memory allocation failed for temporary Iris sample %d", i);
-//         }
-//         indices[i] = i;
-//     }
-
-//     char line[MAX_LINE_LENGTH];
-//     int sample_count = 0;
-//     const char* delim = ",";
-
-//     while (fgets(line, sizeof(line), file) && sample_count < IRIS_TOTAL_SAMPLES) {
-//         char* line_copy = strdup(line);
-//         assert_fatal(line_copy, "Memory allocation failed for line_copy");
-//         char* token;
-//         int feature_count = 0;
-
-//         token = strtok(line_copy, delim);
-//         while (token != NULL && feature_count < IRIS_INPUT_SIZE) {
-//             char *endptr;
-//             // float val = strtof(token, &endptr);
-//             uint8_t val = strtoul(token, &endptr, 10);
-//             if (endptr == token || (*endptr != '\0' && *endptr != '\n' && *endptr != '\r' && *endptr != ',')) {
-//                 error("Warning: Invalid feature value '%s' at sample %d, feature %d. Skipping sample.", token, sample_count, feature_count);
-//                 goto next_line; // Skip rest of the line processing
-//             }
-//             all_x[sample_count][feature_count] = val;
-//             feature_count++;
-//             token = strtok(NULL, delim);
-//         }
-
-//         if (token != NULL && feature_count == IRIS_INPUT_SIZE) {
-//             token[strcspn(token, "\r\n")] = 0;
-
-//             all_Y_int[sample_count] = strtoul(token, NULL, 10);
-            
-//             sample_count++;
-//         } else {
-//             error("Warning: Incorrect data format at line corresponding to sample index %d in %s. Skipping.", sample_count, filename);
-//         }
-
-//     next_line:
-//         free(line_copy);
-//     }
-//     fclose(file);
-
-//     if (sample_count != IRIS_TOTAL_SAMPLES) {
-//         error("Warning: Expected %d samples, but loaded %d valid samples from %s.", IRIS_TOTAL_SAMPLES, sample_count, filename);
-//     }
-//     log("Loaded %d total valid float samples from %s.", sample_count, filename);
-
-//     shuffle_indices(indices, sample_count);
-
-//     *train_count = (int) (sample_count * TRAIN_SPLIT_RATIO / 100);
-//     *test_count = sample_count - *train_count;
-
-//     *X_train = malloc(*train_count * sizeof(int8_t*));
-//     *X_test = malloc(*test_count * sizeof(int8_t*));
-    
-//     assert_fatal(*X_train && X_test, "Memory allocation failed for final train/test X pointers");
-
-//     for (lsize_t i = 0; i < *train_count; ++i) {
-//         int original_idx = indices[i];
-//         (*X_train)[i] = all_x[original_idx];
-//         Y_train->vector[i] = all_Y_int[original_idx];
-//     }
-//     Y_train->length = *train_count;
-//     Y_train->scale = 0;
-
-//     for (lsize_t i = 0; i < *test_count; ++i) {
-//         int original_idx = indices[*train_count + i];
-//         (*X_test)[i] = all_x[original_idx];
-//         Y_test->vector[i] = all_Y_int[original_idx];
-//     }
-//     Y_test->length = *test_count;
-//     Y_test->scale = 0;
-
-//     log("Split data: %d training samples, %d testing samples.", *train_count, *test_count);
-
-//     free(all_x);
-//     free(all_Y_int);
-//     free(indices);
-// }
-
-
 void split_iris(int8_t*** X_train, Vector8* Y_train, lsize_t* train_count, int8_t*** X_test, Vector8* Y_test, lsize_t* test_count) {
     *train_count = (int16_t) IRIS_SAMPLES * (int16_t) TRAIN_SPLIT_RATIO / (int16_t) 100;
     *test_count = IRIS_SAMPLES - *train_count;
+
+    // // TODO TESTS
+    // *X_train = iris_X;
+    // *X_train = malloc(*train_count * sizeof(int8_t*));
+    // for (lsize_t i = 0; i < *train_count; ++i) {
+    //     // Cast to (int8_t*) to discard const/volatile for the assignment,
+    //     // assuming read-only access through X_train_float.
+    //     (*X_train)[i] = (int8_t*)iris_X[i]; // If using shuffled indices
+    //     // Or, for a simple sequential split:
+    //     // (*X_train)[i] = (int8_t*)iris_X[i];
+    // }
+    
+    // // *X_test = iris_X + *train_count;
+    // *X_test = malloc(*test_count * sizeof(int8_t*));
+    // for (lsize_t i = 0; i < *test_count; ++i) {
+    //     // Cast to (int8_t*) to discard const/volatile for the assignment,
+    //     // assuming read-only access through X_train_float.
+    //     (*X_test)[i] = (int8_t*)iris_X[i + *train_count]; // If using shuffled indices
+    //     // Or, for a simple sequential split:
+    //     // (*X_train)[i] = (int8_t*)iris_X[i];
+    // }
+
+    // *Y_train = init_v8(*train_count);
+    // // Y_train->vector = iris_Y;
+    // Y_train->vector = iris_Y;
+
+    // *Y_test = init_v8(*test_count);
+    // Y_test->vector = iris_Y + *train_count;
+    
+    // return;
+
+
 
     uint8_t* indices = malloc(IRIS_TOTAL_SAMPLES * sizeof(uint8_t));
     for (uint8_t i = 0; i < IRIS_TOTAL_SAMPLES; ++i) {
@@ -262,8 +187,8 @@ int main(void) {
                 &X_train_float, &Y_train_full, num_train_samples_loaded,
                 &X_test_float, &Y_test_full, num_test_samples_loaded,
                 NUM_EPOCHS);
-    cleanup(network, &X_train_float, &Y_train_full, num_train_samples_loaded,
-                    &X_test_float, &Y_test_full, num_test_samples_loaded);
+    // cleanup(network, &X_train_float, &Y_train_full, num_train_samples_loaded,
+    //                 &X_test_float, &Y_test_full, num_test_samples_loaded);
 
     println("Iris Classification Test Finished (C).");
 
