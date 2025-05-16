@@ -1,6 +1,6 @@
 #include <stdint.h>
-#include <stdio.h>
 #include "quantization.h"
+#include "linear.h"
 
 // --- Helper: Estimate bitwidth of a single int32 ---
 // Returns the minimum bits needed to represent the value (excluding sign bit)
@@ -36,6 +36,8 @@ int8_t estimate_matrix_bitwidth(Matrix32* m) {
             }
         }
     }
+    // print_matrix32(m, "Estimate");
+    // println("Max: %ld", max_abs_val);
      // Directly calculate bitwidth from the max absolute value found
     return get_int32_bitwidth(max_abs_val);
 }
@@ -71,11 +73,33 @@ int8_t round_shift(int32_t input, int8_t shift) {
 
     // printf("Max stack used: %u bytes\n", (unsigned)__heap);
 
+    // println("%ld %ld %ld", rounded_val, input + half_divisor, (input + half_divisor) >> shift);
+
     // Clamp
     if (rounded_val > 127) return 127;
     if (rounded_val < -128) return -128;
     return (int8_t)rounded_val;
 }
+
+#ifdef LIN_DEBUG
+#define print_i8(fmt, num) println(fmt ": %d", num)
+#ifndef __NES__
+#define print_i32(fmt, num) println(fmt ": %d", num)
+#else
+#define print_i32(fmt, num) println(fmt ": %ld", num)
+#endif
+#else
+#define print_i32(fmt, num)
+#define print_i8(fmt, num)
+#endif
+
+// void print_i32(const char* fmt, int32_t num) {
+//     #ifndef __NES__
+//     println(fmt "%d", num);
+//     #else
+//     println("%ld", num);
+//     #endif
+// }
 
 // PstoShift (Pseudo-stochastic rounding)
 int8_t psto_shift(int32_t input, int8_t shift) {
@@ -98,11 +122,14 @@ int8_t psto_shift(int32_t input, int8_t shift) {
 
     // Quantize the probability (upper bits of prob)
     uint32_t quantized_prob = prob >> sub_shift;
+    print_i32("psto quantized_prob", quantized_prob);
+    
 
     // Adjust pseudo_rand_num if shift is odd (match bit widths)
     if (shift % 2 == 1) {
         pseudo_rand_num <<= 1;
     }
+    print_i32("psto pseudo_rand_num", pseudo_rand_num);
 
     // Make rounding decision
     int8_t round_decision = (quantized_prob <= pseudo_rand_num) ? 0 : 1;
@@ -113,6 +140,7 @@ int8_t psto_shift(int32_t input, int8_t shift) {
     }
 
     int32_t final_val = round_temp + round_decision;
+    print_i32("psto final_val", final_val);
 
     // Clamp
     if (final_val > 127) return 127;

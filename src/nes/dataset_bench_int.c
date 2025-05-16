@@ -1,9 +1,9 @@
 #include "dataset_bench_int.h"
 #include "base.h"
 #include "linear.h"
+#include "network.h"
 #include <stddef.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -47,15 +47,14 @@ __bank(1) Network* create_network(lsize_t layers_size, LayerType* kinds, lsize_t
     println("Initializing network...");
     Network* network = init_network(layers_size, batch_size);
     println("Initializing layers...");
-    for (lsize_t i = 0; i < layers_size; i++) {
+    for (lsize_t i = 0; i < layers_size; ++i) {
         network->layers[i] = init_layer(batch_size, sizes[i], sizes[i + 1], kinds[i]);
         if (kinds[i] == LINEAR) {
             init_weights(&network->layers[i]->weights);
+            // print_matrix8(&network->layers[i]->weights, "Weights");
         }
     }
-    #if PRINT_ALLOWED > 0
     print_network(network);
-    #endif
     return network;
 }
 
@@ -80,9 +79,7 @@ __bank(1) Vector8* predict(Network* network, Matrix8* x_batch) {
         }
         result->vector[k] = predicted_class;
     }
-
     free_m8(&output_activations);
-
     return result;
 }
 
@@ -121,12 +118,11 @@ __bank(1) void evaluate(Network* network, int8_t*** X_test, Vector8* Y_test, lsi
         free_v8(&y_batch);
     }
 
-    #if PRINT_ALLOWED > 0
+    #ifndef NO_PRINT
     uint8_t accuracy = (uint16_t) correct_predictions * 100 / samples_processed;
-    #endif
-
     println("Evaluation Complete.");
     println("Accuracy on test set: ~%d%% (%d / %d correct)", accuracy, correct_predictions, samples_processed);
+    #endif
 }
 
 __bank(1) void evaluate_full(Network* network, int8_t*** X_test, Vector8* Y_test, lsize_t num_test_samples, int8_t*** X_train, Vector8* Y_train, lsize_t num_train_samples) {
@@ -195,11 +191,10 @@ __bank(1) void evaluate_full(Network* network, int8_t*** X_test, Vector8* Y_test
         free_v8(&y_batch);
     }
 
-    #if PRINT_ALLOWED > 0
+    #ifndef NO_PRINT
     accuracy = (uint32_t) correct_predictions * 10000 / samples_processed;
-    #endif
-
     println("Accuracy on train set: %d.%d%% (%d / %d correct)", accuracy / 100, accuracy % 100, correct_predictions, samples_processed);
+    #endif
 }
 
 void print_loss(Matrix8* loss) {
@@ -217,8 +212,7 @@ const char* num = "%d\n";
 __bank(2) void train_network(Network* network, int8_t*** X_train, Vector8* Y_train, lsize_t train_samples_size, int8_t*** X_test, Vector8* Y_test, lsize_t test_samples_size, uint32_t epochs) {
     lsize_t batch_size = network->batch_size;
     lsize_t input_size = network->layers[0]->weights.height;
-    println("\n--- Starting Training (C) for %d Epochs ---", epochs);
-    // printf("\n--- Starting Training (C) for %d Epochs ---\n", epochs);
+    println("\n--- Starting Training (C) for %lu Epochs ---", epochs);
     Matrix8 x_batch;
     Vector8 y_batch;
     for (uint32_t epoch = 0; epoch < epochs; ++epoch) {
