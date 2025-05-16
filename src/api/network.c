@@ -4,7 +4,6 @@
 // #include "float_ops.h"
 #include <inttypes.h>
 #include <stdint.h>
-#include <stdio.h>
 
 static int8_t global_mu = 4;
 
@@ -29,6 +28,7 @@ __bank(1) Layer* init_layer(lsize_t batch_size, lsize_t num_inputs, lsize_t num_
     }
     l->activations = init_m8(batch_size, num_neurons);
     l->input_copy = init_m8(0, 0);
+    // println("%d %d %d %d %d %d", l->weights.width, l->weights.height, l->activations.width, l->activations.height, l->input_copy.width, l->input_copy.height);
     return l;
 }
 
@@ -122,6 +122,10 @@ __bank(2) Matrix8 grad_calc(Matrix32* int32_acc, int8_t mu, int8_t* out_shift) {
 
     debug("[grad_calc]: mu=%d, BW=%d, CalcShift=%d", mu, int32_bitwidth, shift);
 
+    #ifdef LIN_DEBUG
+    println("grad_calc shift: %d", shift);
+    #endif
+
     if (int32_bitwidth == 0) {
         *out_shift = 0; // No gradient, shift is 0
         // Matrix already initialized to zeros by init_m8
@@ -143,7 +147,11 @@ __bank(2) Matrix8 grad_calc(Matrix32* int32_acc, int8_t mu, int8_t* out_shift) {
                 result.matrix[i][j] = psto_shift(int32_acc->matrix[i][j], shift);
             }
         }
+        print_matrix8_d(&result, "grad_calc Result");
     }
+
+    // print_matrix32(int32_acc, "int32_acc");
+    // print_matrix8(&result, "grad_calc");
 
     debug(", FinalShift=%d, FirstGradVal=%d\n", *out_shift, result.matrix[0][0]);
 
@@ -261,6 +269,10 @@ __bank(2) Matrix8 layer_backward(const Layer* layer, const Matrix8* error_in) {
         // grad_int32acc: (neurons_out, neurons_in), Scale: err_in_exp + layer->input_exp (before grad_calc)
         Matrix32 grad_int32acc = get_mul8_1t(error_in, &layer->input_copy);
 
+        print_matrix8_d(error_in, "ErrIn");
+        print_matrix8_d(&layer->input_copy, "InputCopy");
+        print_matrix32_d(&grad_int32acc, "grad_int32acc");
+
         // Calculate int8 gradient and the shift applied
         int8_t grad_shift = 0;
         Matrix8 grad_int8 = grad_calc(&grad_int32acc, global_mu, &grad_shift);
@@ -283,6 +295,9 @@ __bank(2) Matrix8 layer_backward(const Layer* layer, const Matrix8* error_in) {
 
         // print_layer(layer, "Linear");
 
+        print_matrix8_d(&grad_int8, "Layer Backward Gradient");
+        print_matrix8_d(&err_out, "Layer Backward Linear");
+
         return err_out; // Contains data and scale
 
     } else if (layer->type == RELU) {
@@ -298,6 +313,8 @@ __bank(2) Matrix8 layer_backward(const Layer* layer, const Matrix8* error_in) {
         }
 
         // print_layer(layer, "ReLU");
+
+        print_matrix8_d(&err_out, "Layer Backward ReLU");
 
         return err_out;
     } else {
@@ -333,6 +350,9 @@ __bank(2) void layer_forward_1(Layer* layer, const Matrix8* input, Matrix8* out)
     if (layer->type == LINEAR) {
         // printf("kek1\n");
         Matrix32 temp = get_mul8_2t(&layer->input_copy, &layer->weights);
+        print_matrix8_d(&layer->input_copy, "A");
+        print_matrix8_d(&layer->weights, "B");
+        print_matrix32_d(&temp, "layer_forward_1_temp");
         // printf("kek2\n");
         for (lsize_t i = 0; i < out->width; ++i) {
             free(out->matrix[i]);
@@ -394,6 +414,7 @@ __bank(2) Matrix8 network_forward_2(const Network* network, const Matrix8* X) {
     // printf("Layer: 0\n");
     layer_forward_1(network->layers[0], X, &next_activations);
     Matrix8 current_activations = next_activations; // Keep the latest (contains data and scale)
+    print_matrix8_d(&current_activations, "First Inter activations");
     next_activations.width = 0;
     next_activations.matrix = NULL;
     for (lsize_t i = 1; i < network->num_layers; ++i) {
@@ -401,6 +422,7 @@ __bank(2) Matrix8 network_forward_2(const Network* network, const Matrix8* X) {
         layer_forward_1(network->layers[i], &current_activations, &next_activations);
         free_m8(&current_activations); // Free intermediate activations
         current_activations = next_activations; // Keep the latest (contains data and scale)
+        print_matrix8_d(&current_activations, "Inter activations");
         next_activations.width = 0;
         next_activations.matrix = NULL;
     }
@@ -518,6 +540,9 @@ Matrix8 sto_shift(const Matrix32* matrix, int8_t shift) {
             else result.matrix[i][j] = (int8_t) (round_temp + round_decision);
         }
     }
+    #ifdef LIN_DEBUG
+    println("STO Shift scales: %d %d", matrix->scale, shift);
+    #endif
     result.scale = matrix->scale + shift;
     free_m32(&temp);
     return result;
@@ -638,6 +663,8 @@ Matrix8 sto_shift(const Matrix32* matrix, int8_t shift) {
     // for (lsize_t r = 0; r < batch; ++r)
     //     for (lsize_t c = 0; c < classes; ++c)
     //         tmp.matrix[r][c] = (int32_t)grad64.matrix[r][c];
+    
+    print_matrix32_d(&s, "s");
         
     // res.out_grad = sto_shift(&s, 4);
     res = sto_shift(&s,4);
@@ -721,6 +748,10 @@ Matrix8 network_backward_1(const Network* network, const Vector8* Y) {
 
     // Matrix8 loss = loss_gradient(&out_activations, Y);
     Matrix8 loss = loss_gradient(&out_activations, Y);
+
+    print_matrix8_d(&out_activations, "OutAct");
+    print_vector8_d(Y, "Y");
+    print_matrix8_d(&loss, "Loss");
 
     for (int i = network->num_layers - 1; i >= 0; --i) {
         Matrix8 prev_error = layer_backward(network->layers[i], &loss);
