@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <math.h>
+#include <inttypes.h>
 
 #if defined(__NES__) || defined(NEW_RANDOM)
 #include "random.h"
@@ -18,6 +19,21 @@
 #define urand16() rand() % 65536
 #define rand8() (int8_t) (urand8() - 128)
 #define rand16() (int16_t) (urand16() - 32768)
+#endif
+
+#define FMT_8 "%" PRId8
+#define FMT_u8 "%" PRIu8
+#define FMT_16 "%" PRId16
+#define FMT_u16 "%" PRIu16
+#define FMT_32 "%" PRId32
+#define FMT_u32 "%" PRIu32
+#define FMT_SIZE "%zu"
+#define FMT_POINTER "%p"
+
+#ifdef NES
+#define FMT_LSIZE FMT_u8
+#else
+#define FMT_LSIZE FMT_u32
 #endif
 
 #ifdef __NES__

@@ -9,7 +9,8 @@
 
 // integer square-root (any standard 32-bit routine will do)
 uint32_t isqrt32(uint32_t x) {
-    uint32_t res = 0, bit = 1u << 30;
+    uint32_t res = 0;
+    uint32_t bit = 1UL << 30;
     while (bit > x) bit >>= 2;
     for (; bit; bit >>= 2) {
         if (x >= res + bit) {
@@ -25,7 +26,8 @@ uint32_t isqrt32(uint32_t x) {
 // w ~ U(-l, l), l = sqrt(6/(in+out))
 void init_xavier(Matrix8* weights) {
     uint32_t sum = weights->width + weights->height;
-    uint32_t ratio = (6 << 16) / sum;
+    uint32_t ratio = (6UL << 16) / sum;
+    // uint32_t ratio = 32768;
     uint32_t limit = isqrt32(ratio);
     if (limit > 255) limit = 255;
     weights->scale = -8;
@@ -33,7 +35,9 @@ void init_xavier(Matrix8* weights) {
     for (lsize_t i = 0; i < weights->width; i++) {
         for (lsize_t j = 0; j < weights->height; j++) {
             int16_t r16 = rand16();
-            int16_t v = (r16 * (int)limit) >> 15;
+            // println("%d", r16);
+            int16_t v = (int16_t) ((r16 * limit) >> 15);
+            // println("%d %d %lu %lu %lu", r16, v, sum, ratio, limit);
             weights->matrix[i][j] = (int8_t)v;
         }
     }
@@ -43,7 +47,7 @@ void init_weights(Matrix8 *weights) {
     init_xavier(weights);
 }
 
-__bank(1) Network* create_network(lsize_t layers_size, LayerType* kinds, lsize_t* sizes, lsize_t batch_size) {
+__bank(1) Network* create_network(lsize_t layers_size, const LayerType* kinds, const lsize_t* sizes, lsize_t batch_size) {
     println("Initializing network...");
     Network* network = init_network(layers_size, batch_size);
     println("Initializing layers...");
@@ -58,7 +62,7 @@ __bank(1) Network* create_network(lsize_t layers_size, LayerType* kinds, lsize_t
     return network;
 }
 
-__bank(1) Vector8* predict(Network* network, Matrix8* x_batch) {
+__bank(1) Vector8* predict(const Network* network, const Matrix8* x_batch) {
     Matrix8 output_activations = network_forward(network, x_batch);
 
     Vector8* result = (Vector8*) malloc(sizeof(Vector8));
@@ -71,7 +75,7 @@ __bank(1) Vector8* predict(Network* network, Matrix8* x_batch) {
     for (lsize_t k = 0; k < result->length; ++k) {
         int8_t max_activation_int8 = -128;
         int8_t predicted_class = -1;
-        for (lsize_t i = 0; i < output_activations.height; ++i) {
+        for (uint8_t i = 0; i < output_activations.height; ++i) {
             if (output_activations.matrix[k][i] > max_activation_int8) {
                 max_activation_int8 = output_activations.matrix[k][i];
                 predicted_class = i;
@@ -83,7 +87,7 @@ __bank(1) Vector8* predict(Network* network, Matrix8* x_batch) {
     return result;
 }
 
-__bank(1) void evaluate(Network* network, int8_t*** X_test, Vector8* Y_test, lsize_t num_test_samples) {
+__bank(1) void evaluate(const Network* network, int8_t*** X_test, const Vector8* Y_test, lsize_t num_test_samples) {
     lsize_t batch_size = network->batch_size;
     lsize_t input_size = network->layers[0]->weights.height;
     println("\n--- Evaluating Network (C) ---");
@@ -119,13 +123,13 @@ __bank(1) void evaluate(Network* network, int8_t*** X_test, Vector8* Y_test, lsi
     }
 
     #ifndef NO_PRINT
-    uint8_t accuracy = (uint16_t) correct_predictions * 100 / samples_processed;
+    uint8_t accuracy = (uint8_t) ((uint16_t) correct_predictions * 100 / samples_processed);
     println("Evaluation Complete.");
     println("Accuracy on test set: ~%d%% (%d / %d correct)", accuracy, correct_predictions, samples_processed);
     #endif
 }
 
-__bank(1) void evaluate_full(Network* network, int8_t*** X_test, Vector8* Y_test, lsize_t num_test_samples, int8_t*** X_train, Vector8* Y_train, lsize_t num_train_samples) {
+__bank(1) void evaluate_full(const Network* network, int8_t*** X_test, const Vector8* Y_test, lsize_t num_test_samples, int8_t*** X_train, const Vector8* Y_train, lsize_t num_train_samples) {
     lsize_t batch_size = network->batch_size;
     lsize_t input_size = network->layers[0]->weights.height;
     println("\n--- Evaluating Network (C) ---");
@@ -160,13 +164,12 @@ __bank(1) void evaluate_full(Network* network, int8_t*** X_test, Vector8* Y_test
         free_v8(&y_batch);
     }
 
-    #if PRINT_ALLOWED > 0
-    uint32_t accuracy = (uint32_t) correct_predictions * 10000 / samples_processed;
-    #endif
-
+    #ifndef NO_PRINT
+    uint16_t accuracy = (uint16_t) ((uint32_t) correct_predictions * 10000 / samples_processed);
     println("Evaluation Complete.");
     // println("Accuracy on test set: ~%d%% (%d / %d correct)", accuracy, correct_predictions, samples_processed);
     println("Accuracy on test set: %d.%d%% (%d / %d correct)", accuracy / 100, accuracy % 100, correct_predictions, samples_processed);
+    #endif
 
     correct_predictions = 0;
     samples_processed = 0;
@@ -192,51 +195,47 @@ __bank(1) void evaluate_full(Network* network, int8_t*** X_test, Vector8* Y_test
     }
 
     #ifndef NO_PRINT
-    accuracy = (uint32_t) correct_predictions * 10000 / samples_processed;
+    accuracy = (uint16_t) ((uint32_t) correct_predictions * 10000 / samples_processed);
     println("Accuracy on train set: %d.%d%% (%d / %d correct)", accuracy / 100, accuracy % 100, correct_predictions, samples_processed);
     #endif
 }
 
-void print_loss(Matrix8* loss) {
+void print_loss(const Matrix8* loss) {
     int32_t sum = 0;
     for (lsize_t i = 0; i < loss->width; ++i) {
         for (lsize_t j = 0; j < loss->height; ++j) {
             sum += loss->matrix[j][i];
         }
     }
-    println("Loss [Sum: %d; Mean: %d (Scale = %d)]", sum, sum / (loss->width * loss->height), loss->scale);
+    println("Loss [Sum: " FMT_32 "; Mean: " FMT_32 " (Scale = " FMT_8 ")]", sum, sum / (loss->width * loss->height), loss->scale);
 }
 
 const char* num = "%d\n";
 
-__bank(2) void train_network(Network* network, int8_t*** X_train, Vector8* Y_train, lsize_t train_samples_size, int8_t*** X_test, Vector8* Y_test, lsize_t test_samples_size, uint32_t epochs) {
+__bank(2) void train_network(const Network* network, int8_t*** X_train, Vector8* Y_train, lsize_t train_samples_size, int8_t*** X_test, Vector8* Y_test, lsize_t test_samples_size, uint32_t epochs) {
     lsize_t batch_size = network->batch_size;
     lsize_t input_size = network->layers[0]->weights.height;
-    println("\n--- Starting Training (C) for %lu Epochs ---", epochs);
+    println("\n--- Starting Training (C) for " FMT_u32 " Epochs ---", epochs);
     Matrix8 x_batch;
     Vector8 y_batch;
     for (uint32_t epoch = 0; epoch < epochs; ++epoch) {
-        println("\nEpoch %d/%d", epoch + 1, epochs);
-        // printf("\nEpoch %d/%d\n", epoch + 1, epochs);
-        // printf(num, epoch);
-        #if PRINT_ALLOWED > 0
-        int samples_processed_epoch = 0;
-        #endif
+        println("\nEpoch " FMT_u32 "/" FMT_u32, epoch + 1, epochs);
+        lsize_t samples_processed_epoch = 0;
         // int32_t loss_sum = 0;
 
         for (lsize_t sample_idx = 0; sample_idx < train_samples_size; sample_idx += batch_size) {
             lsize_t current_batch_size = (sample_idx + batch_size <= train_samples_size) ? batch_size : (train_samples_size - sample_idx);
             if (current_batch_size <= 0) continue;
 
-            // printf("batch: %d\n", current_batch_size);
-
             load_batch(X_train, Y_train, &x_batch, &y_batch, sample_idx, current_batch_size, input_size);
 
-            // printf("Batch Loaded\n");
+            // print_matrix8(&x_batch, "x_batch");
+            // print_vector8(&y_batch, "y_batch");
+            
 
             Matrix8 out_activations = network_forward(network, &x_batch);
 
-            // printf("Forward Done\n");
+            // print_matrix8(&out_activations, "Forward Out");
 
             // Matrix8 loss = loss_gradient(&out_activations, &y_batch);
 
@@ -251,15 +250,15 @@ __bank(2) void train_network(Network* network, int8_t*** X_train, Vector8* Y_tra
             free_m8(&out_activations);
             free_m8(&err_back_to_input);
 
-            #if PRINT_ALLOWED > 0
+            #ifndef NO_PRINT
             samples_processed_epoch += current_batch_size;
             if ((samples_processed_epoch % 512 == 0) || (sample_idx + current_batch_size >= train_samples_size)) {
-                //  printf("  Epoch %d: Processed %d / %d samples\r", epoch + 1, samples_processed_epoch, train_samples_size);
-                 fflush(stdout);
+                // printf("Epoch " FMT_u32 ": Processed " FMT_LSIZE " / " FMT_LSIZE " samples\r", epoch + 1, samples_processed_epoch, train_samples_size);
+                // fflush(stdout);
             }
             #endif
         }
-        println("\nEpoch %d finished. Processed %d samples.", epoch + 1, samples_processed_epoch);
+        println("\nEpoch " FMT_u32 " finished. Processed " FMT_LSIZE " samples.", epoch + 1, samples_processed_epoch);
 
         // printf("Loss [Sum: %d; Mean: %d (Scale = %d)]\n", loss_sum, loss_sum / (int32_t) (train_samples_size * network->layers[network->num_layers - 1]->activations.height), 0);
 
@@ -269,7 +268,7 @@ __bank(2) void train_network(Network* network, int8_t*** X_train, Vector8* Y_tra
     println("\n--- Training Finished (C) ---");
 }
 
-void load_batch(int8_t*** X, Vector8* Y, Matrix8* x_batch, Vector8* y_batch, lsize_t start_idx, lsize_t batch_size, lsize_t features) {
+void load_batch(int8_t*** X, const Vector8* Y, Matrix8* x_batch, Vector8* y_batch, lsize_t start_idx, lsize_t batch_size, lsize_t features) {
     // free_m8(x_batch);
     *x_batch = init_m8(batch_size, features);
     for (lsize_t i = 0; i < batch_size; i++) {
