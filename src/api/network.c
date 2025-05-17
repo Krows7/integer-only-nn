@@ -666,7 +666,7 @@ Matrix8 sto_shift(const Matrix32* matrix, int8_t shift) {
     //         tmp.matrix[r][c] = (int32_t)grad64.matrix[r][c];
     
     print_matrix32_d(&s, "s");
-        
+
     // res.out_grad = sto_shift(&s, 4);
     res = sto_shift(&s,4);
     // free_m32(&tmp);
