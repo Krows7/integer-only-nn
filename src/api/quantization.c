@@ -11,7 +11,7 @@ int8_t get_int32_bitwidth(int32_t val) {
     uint32_t uval = (val == INT32_MIN) ? (uint32_t)INT32_MAX + 1 : (uint32_t)abs(val);
     // Find position of the most significant bit (MSB)
     // __builtin_clz is efficient on GCC/Clang
-    #if defined(__GNUC__) || defined(__clang__)
+    #if !defined(__NES__) && (defined(__GNUC__) || defined(__clang__))
         int leading_zeros = __builtin_clz(uval);
         return (32 - leading_zeros);
     #else
@@ -57,8 +57,10 @@ int8_t round_shift(int32_t input, int8_t shift) {
         if (input < -128) return -128;
         return (int8_t)input;
     }
-    int32_t divisor = 1 << shift;
-    int32_t half_divisor = 1 << (shift - 1); // For rounding
+    int32_t divisor = ((int32_t) 1) << shift;
+    int32_t half_divisor = (int32_t) 1 << (shift - 1); // For rounding
+
+    // println("AA: %d %ld %ld", shift, divisor, half_divisor);
 
     // Add half_divisor for positive numbers, subtract for negative before division
     int32_t rounded_val;
@@ -117,8 +119,12 @@ int8_t psto_shift(int32_t input, int8_t shift) {
     uint32_t prob = abs(remainder); // Use absolute value for comparison magnitude
 
     // Calculate pseudo-random number from lower bits of remainder/prob
-    int8_t sub_shift = shift / 2;
-    uint32_t pseudo_rand_num = prob & ((1 << sub_shift) - 1); // Extract lower bits
+    // int8_t sub_shift = shift / 2;
+    int8_t sub_shift = shift >> 1;
+    print_i8("psto sub_shift", sub_shift);
+
+    uint32_t pseudo_rand_num = prob & ((((int32_t) 1) << sub_shift) - 1); // Extract lower bits
+    print_i32("psto pseudo_rand_num", pseudo_rand_num);
 
     // Quantize the probability (upper bits of prob)
     uint32_t quantized_prob = prob >> sub_shift;
