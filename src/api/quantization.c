@@ -112,6 +112,8 @@ int8_t round_shift(int32_t input, int8_t shift) {
 // }
 
 // PstoShift (Pseudo-stochastic rounding)
+// shift must be non-negative
+// input == INT32_MIN will provide errors
 int8_t psto_shift(int32_t input, int8_t shift) {
      if (shift <= 0) {
         if (input > 127) return 127;
@@ -119,11 +121,28 @@ int8_t psto_shift(int32_t input, int8_t shift) {
         return (int8_t)input;
     }
 
-    int32_t divisor = 1 << shift;
-    int32_t round_temp = input / divisor; // Integer division truncates
+    // int32_t divisor = 1 << shift;
+    int32_t divisor = ((int32_t) 1) << shift;
+    print_i32("psto divisor", divisor);
+
+    // int32_t round_temp = input / divisor; // Integer division truncates
+    // int32_t round_temp = input >> shift;
+    int32_t round_temp;
+    if (input >= 0) {
+        round_temp = input >> shift;
+    } else {
+        round_temp = -(-input >> shift); // Integer division truncates
+    }
+    print_i32("psto round_temp", round_temp);
 
     // Calculate remainder (probability)
-    int32_t remainder = input - round_temp * divisor;
+    // int32_t remainder = input - (round_temp << divisor);
+    // int32_t remainder = input - round_temp * divisor;
+    int32_t remainder = input - (round_temp << shift);
+    print_i32("psto input", input);
+    print_i32("psto interm", round_temp << shift);
+    print_i32("psto remainder", remainder);
+
     uint32_t prob = abs(remainder); // Use absolute value for comparison magnitude
 
     // Calculate pseudo-random number from lower bits of remainder/prob
