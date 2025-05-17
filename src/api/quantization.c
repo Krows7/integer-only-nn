@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include "quantization.h"
+#include "base.h"
 #include "linear.h"
 
 // --- Helper: Estimate bitwidth of a single int32 ---
@@ -65,12 +66,19 @@ int8_t round_shift(int32_t input, int8_t shift) {
     // Add half_divisor for positive numbers, subtract for negative before division
     int32_t rounded_val;
     if (input >= 0) {
-        rounded_val = (input + half_divisor) / divisor;
+        // rounded_val = (input + half_divisor) / divisor;
+        rounded_val = (input + half_divisor) >> shift;
     } else {
         // Careful with integer division of negative numbers
-        rounded_val = (input - half_divisor + 1) / divisor; // Approximation
+        // rounded_val = (input - half_divisor + 1) / divisor; // Approximation
+        // rounded_val = (input - half_divisor + 1) >> shift; // Approximation
+        // int32_t true_round = (input - half_divisor + 1) / divisor;
+        // if (true_round != rounded_val + 1) println(FMT_32 "==" FMT_32 " (" FMT_32 ", " FMT_32 ", " FMT_8 ", " FMT_32 ")", rounded_val, true_round, input, half_divisor, shift, divisor);
+        // else println("AAA " FMT_32 "==" FMT_32 " (" FMT_32 ", " FMT_32 ", " FMT_8 ", " FMT_32 ")", rounded_val, true_round, input, half_divisor, shift, divisor);
         // A more robust way for negative numbers:
         // rounded_val = -((abs(input) + half_divisor) / divisor);
+
+        rounded_val = -((half_divisor - 1 - input) >> shift);
     }
 
     // printf("Max stack used: %u bytes\n", (unsigned)__heap);
