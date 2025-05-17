@@ -532,7 +532,9 @@ Matrix8 sto_shift(const Matrix32* matrix, int8_t shift) {
         for (lsize_t j = 0; j < temp.height; ++j) {
             int32_t round_temp = temp.matrix[i][j] >> shift;
             int32_t prob = abs(temp.matrix[i][j] - (round_temp << shift));
-            int32_t rand_num = rand() % (1 << shift);
+            // int32_t rand_num = rand() % (1 << shift);
+            // TODO Not Uniform Distribution
+            int32_t rand_num = urand8() % (1 << shift);
             int32_t round_decision = (prob <= rand_num) ? 0 : 1;
             round_decision *= sign(temp.matrix[i][j]);
             if (round_temp + round_decision > 127) result.matrix[i][j] = 127;
@@ -607,7 +609,8 @@ Matrix8 sto_shift(const Matrix32* matrix, int8_t shift) {
             for (lsize_t c = 0; c < s.height; ++c) {
                 int32_t v = s.matrix[r][c] - off;
                 s.matrix[r][c] = max(v, 0);
-                s.matrix[r][c] = (1 << s.matrix[r][c]) - 1;
+                // s.matrix[r][c] = (1 << s.matrix[r][c]) - 1;
+                s.matrix[r][c] = (((int32_t) 1) << s.matrix[r][c]) - 1;
             }
         }
 
