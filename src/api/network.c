@@ -643,7 +643,8 @@ Matrix8 sto_shift(const Matrix32* matrix, int8_t shift) {
         int32_t total = 0;
         for (lsize_t c = 0; c < s.height; ++c) {
             // s.matrix[r][c] = s.matrix[r][c] * norm / (row_sum[r] == 0 ? 1 : row_sum[r]);
-            s.matrix[r][c] = s.matrix[r][c] * norm / row_sum[r];
+            // s.matrix[r][c] = s.matrix[r][c] * norm / row_sum[r];
+            s.matrix[r][c] = (s.matrix[r][c] << 11) / row_sum[r];
             total += s.matrix[r][c];
         }
         // if (total > INT32_MAX || total < INT32_MIN) log("%" PRId64, total);
