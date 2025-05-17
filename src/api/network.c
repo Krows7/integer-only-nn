@@ -580,7 +580,9 @@ Matrix8 sto_shift(const Matrix32* matrix, int8_t shift) {
         // change base from e to 2: multiply by 47274/(2^15)
         for (lsize_t r = 0; r < s.width; ++r) {
             for (lsize_t c = 0; c < s.height; ++c) {
-                s.matrix[r][c] = s.matrix[r][c] * 47274 / (1<<15);
+                // s.matrix[r][c] = s.matrix[r][c] * 47274 / (1<<15);
+                if (s.matrix[r][c] < 0) s.matrix[r][c] = -((-s.matrix[r][c] * 47274) >> 15);
+                else s.matrix[r][c] = (s.matrix[r][c] * 47274) >> 15;
             }
         }
 
@@ -595,7 +597,9 @@ Matrix8 sto_shift(const Matrix32* matrix, int8_t shift) {
             int32_t d = 1 << -out_val->scale;
             for (lsize_t r = 0; r < s.width; ++r) {
                 for (lsize_t c = 0; c < s.height; ++c) {
-                    s.matrix[r][c] /= d;
+                    // s.matrix[r][c] /= d;
+                    if (s.matrix[r][c] < 0) s.matrix[r][c] = -(-s.matrix[r][c] >> -out_val->scale);
+                    else s.matrix[r][c] >>= -out_val->scale;
                 }
             }
         }
