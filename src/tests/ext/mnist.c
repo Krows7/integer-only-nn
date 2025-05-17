@@ -1,3 +1,4 @@
+#include "base.h"
 #include "linear.h"
 #include "network.h" // Includes network logic and implicitly linear-math
 #include <stdint.h>
@@ -36,8 +37,8 @@ float** X_train_float = NULL;
 float** X_test_float = NULL;
 Vector8 Y_train_full; // Keep labels as int8
 Vector8 Y_test_full;
-int num_train_samples_loaded = 0;
-int num_test_samples_loaded = 0;
+lsize_t num_train_samples_loaded = 0;
+lsize_t num_test_samples_loaded = 0;
 
 // --- Helper Function: Swap Endianness (Big to Little) ---
 uint32_t swap_uint32(uint32_t val) {
@@ -83,7 +84,7 @@ int read_idx_header(FILE* file, uint32_t expected_magic, uint32_t* num_items, ui
 }
 
 // --- Helper Function: Load MNIST Images into FLOAT arrays ---
-void load_mnist_images_float(const char* filename, float*** X_float, int max_samples, int* samples_loaded_count) {
+void load_mnist_images_float(const char* filename, float*** X_float, lsize_t max_samples, lsize_t* samples_loaded_count) {
     FILE* file = fopen(filename, "rb"); // Open in binary read mode
     if (!file) {
         fprintf(stderr, "Error: Could not open image file %s\n", filename);
@@ -134,7 +135,7 @@ void load_mnist_images_float(const char* filename, float*** X_float, int max_sam
 }
 
 // --- Helper Function: Load MNIST Labels ---
-void load_mnist_labels(const char* filename, Vector8* Y, int expected_samples) {
+void load_mnist_labels(const char* filename, Vector8* Y, lsize_t expected_samples) {
     FILE* file = fopen(filename, "rb"); // Open in binary read mode
     if (!file) {
         fprintf(stderr, "Error: Could not open label file %s\n", filename);
@@ -389,7 +390,7 @@ int main(void) {
 
         // Optional: Add shuffling of training indices here for better training
 
-        for (int sample_idx = 0; sample_idx < num_train_samples_loaded; sample_idx += BATCH_SIZE) {
+        for (lsize_t sample_idx = 0; sample_idx < num_train_samples_loaded; sample_idx += BATCH_SIZE) {
             int current_batch_size = (sample_idx + BATCH_SIZE <= num_train_samples_loaded) ? BATCH_SIZE : (num_train_samples_loaded - sample_idx);
              if (current_batch_size <= 0) continue;
 
@@ -441,7 +442,7 @@ int main(void) {
     // Free float data
     printf("Freeing training features...\n");
     if (X_train_float) {
-        for(int i=0; i<num_train_samples_loaded; ++i) {
+        for(lsize_t i=0; i<num_train_samples_loaded; ++i) {
             if (X_train_float[i]) free(X_train_float[i]);
         }
         free(X_train_float);
@@ -449,7 +450,7 @@ int main(void) {
 
     printf("Freeing testing features...\n");
     if (X_test_float) {
-        for(int i=0; i<num_test_samples_loaded; ++i) {
+        for(lsize_t i=0; i<num_test_samples_loaded; ++i) {
              if (X_test_float[i]) free(X_test_float[i]);
         }
         free(X_test_float);

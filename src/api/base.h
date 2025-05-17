@@ -6,21 +6,6 @@
 #include <math.h>
 #include <inttypes.h>
 
-#if defined(__NES__) || defined(NEW_RANDOM)
-#include "random.h"
-
-#define urand8() lfsr8_step()
-#define urand16() lfsr16_step()
-
-#define rand8() (int8_t) (urand8() - 128)
-#define rand16() (int16_t) (urand16() - 32768)
-#else
-#define urand8() rand() % 256
-#define urand16() rand() % 65536
-#define rand8() (int8_t) (urand8() - 128)
-#define rand16() (int16_t) (urand16() - 32768)
-#endif
-
 #define FMT_8 "%" PRId8
 #define FMT_u8 "%" PRIu8
 #define FMT_16 "%" PRId16
@@ -45,6 +30,19 @@
 #else
 #include <stdio.h>
 #endif
+
+#if defined(__NES__) || defined(NEW_RANDOM)
+#include "random.h"
+
+#define urand8() lfsr8_step()
+#define urand16() lfsr16_step()
+#else
+#define urand8() rand() % 256
+#define urand16() rand() % 65536
+#endif
+
+#define rand8() (int8_t) (urand8() - 128)
+#define rand16() (int16_t) (urand16() - 32768)
 
 #if defined(NES) || defined(__NES__)
 #define print_counter(name)

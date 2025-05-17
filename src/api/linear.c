@@ -66,10 +66,10 @@ void printMap()
 
 // ------------ Pool32 ------------
 
-Pool32* create_pool_32(int capacity) {
+Pool32* create_pool_32(lsize_t capacity) {
     Pool32* pool = malloc(sizeof(Pool32));
     pool->matrices = malloc(capacity * sizeof(Matrix32*));
-    for (int i = 0; i < capacity; i++) {
+    for (lsize_t i = 0; i < capacity; i++) {
         pool->matrices[i] = malloc(sizeof(Matrix32));
     }
     // pool->reserved = calloc(sizeof(uint8_t), capacity);
@@ -146,7 +146,7 @@ __bank(2) void lin_cleanup() {
         free(m_pool->matrices[i]);
     }
     free(m_pool->matrices);
-    free(m_pool);
+    free((void*) m_pool);
 
     free(m8_pool->reserved);
     for (lsize_t i = 0; i < m8_pool->size; i++) {
@@ -157,7 +157,7 @@ __bank(2) void lin_cleanup() {
         free(m8_pool->matrices[i]);
     }
     free(m8_pool->matrices);
-    free(m8_pool);
+    free((void*) m8_pool);
 }
 
 __bank(2) Matrix8 init_m8_(lsize_t width, lsize_t height) {

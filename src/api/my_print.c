@@ -195,6 +195,4 @@ void my_printf(const char *format, ...) {
     va_end(args);
 }
 #else
-void my_printf(const char *format, ...) {
-}
 #endif
