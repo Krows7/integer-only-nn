@@ -566,6 +566,7 @@ Matrix8 sto_shift(const Matrix32* matrix, int8_t shift) {
 
     // 1) copy logits into a mutable Matrix64 `s`
     Matrix32 s = init_m32(batch, classes);
+    s.scale = 0;
     for (lsize_t r = 0; r < s.width; ++r)
         for (lsize_t c = 0; c < s.height; ++c)
             s.matrix[r][c] = out_val->matrix[r][c];
@@ -612,8 +613,8 @@ Matrix8 sto_shift(const Matrix32* matrix, int8_t shift) {
 
     } else {
         // small‐exp approx: 1+x+0.5x^2  ⇒ 2^(1−2e)+ s·2^(1−e)+s^2
-        int32_t t1 = 1 << (1 - 2*out_val->scale);
-        int32_t t2 = 1 << (1 - out_val->scale);
+        int32_t t1 = ((int32_t) 1) << (1 - 2*out_val->scale);
+        int32_t t2 = ((int32_t) 1) << (1 - out_val->scale);
         for (lsize_t r = 0; r < s.width; ++r) {
             for (lsize_t c = 0; c < s.height; ++c) {
                 s.matrix[r][c] = t1 + s.matrix[r][c] * t2 + s.matrix[r][c] * s.matrix[r][c];
