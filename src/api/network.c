@@ -594,7 +594,7 @@ Matrix8 sto_shift(const Matrix32* matrix, int8_t shift) {
                 }
         }
         } else {
-            int32_t d = 1 << -out_val->scale;
+            // int32_t d = 1 << -out_val->scale;
             for (lsize_t r = 0; r < s.width; ++r) {
                 for (lsize_t c = 0; c < s.height; ++c) {
                     // s.matrix[r][c] /= d;
@@ -643,7 +643,7 @@ Matrix8 sto_shift(const Matrix32* matrix, int8_t shift) {
 
     // 4) normalize by 2^11/row_sum, then subtract row‐sum at target
     for (lsize_t r = 0; r < s.width; ++r) {
-        int32_t norm = 1 << 11;
+        // int32_t norm = 1 << 11;
         int32_t total = 0;
         for (lsize_t c = 0; c < s.height; ++c) {
             // s.matrix[r][c] = s.matrix[r][c] * norm / (row_sum[r] == 0 ? 1 : row_sum[r]);

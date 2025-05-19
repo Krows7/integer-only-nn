@@ -58,7 +58,7 @@ int8_t round_shift(int32_t input, int8_t shift) {
         if (input < -128) return -128;
         return (int8_t)input;
     }
-    int32_t divisor = ((int32_t) 1) << shift;
+    // int32_t divisor = ((int32_t) 1) << shift;
     int32_t half_divisor = (int32_t) 1 << (shift - 1); // For rounding
 
     // println("AA: %d %ld %ld", shift, divisor, half_divisor);
@@ -122,8 +122,8 @@ int8_t psto_shift(int32_t input, int8_t shift) {
     }
 
     // int32_t divisor = 1 << shift;
-    int32_t divisor = ((int32_t) 1) << shift;
-    print_i32("psto divisor", divisor);
+    // int32_t divisor = ((int32_t) 1) << shift;
+    // print_i32("psto divisor", divisor);
 
     // int32_t round_temp = input / divisor; // Integer division truncates
     // int32_t round_temp = input >> shift;

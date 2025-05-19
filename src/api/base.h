@@ -31,18 +31,17 @@
 #include <stdio.h>
 #endif
 
+// #include "random.h"
 #if defined(__NES__) || defined(NEW_RANDOM)
-#include "random.h"
 
-#define urand8() lfsr8_step()
-#define urand16() lfsr16_step()
+// #define urand8() lfsr8_step()
+// #define urand16() lfsr16_step()
 #else
-#define urand8() rand() % 256
-#define urand16() rand() % 65536
 #endif
+#include "nes_random.h"
 
-#define rand8() (int8_t) (urand8() - 128)
-#define rand16() (int16_t) (urand16() - 32768)
+// #define urand8() lfsr8_step()
+// #define urand16() lfsr16_step()
 
 #if defined(NES) || defined(__NES__)
 #define print_counter(name)

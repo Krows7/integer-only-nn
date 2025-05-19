@@ -6,6 +6,7 @@
 #include <stdint.h>
 
 Network* create_network(lsize_t layers_size, LayerType* kinds, lsize_t* sizes, lsize_t batch_size) {
+    nes_srand_32(1);
     printf("Initializing network...\n");
     Network* network = init_network(layers_size, batch_size);
     printf("Initializing layers...\n");
@@ -178,6 +179,7 @@ int32_t m8_sum(Matrix8* m) {
 }
 
 void train_network(Network* network, float*** X_train, Vector8* Y_train, lsize_t train_samples_size, float*** X_test, Vector8* Y_test, lsize_t test_samples_size, uint32_t epochs) {
+    nes_srand_32(1);
     lsize_t batch_size = network->batch_size;
     // lsize_t batch_size = network->layers[0]->activations.width;
     lsize_t input_size = network->layers[0]->weights.height;
@@ -185,6 +187,7 @@ void train_network(Network* network, float*** X_train, Vector8* Y_train, lsize_t
     Matrix8 x_batch;
     Vector8 y_batch;
     for (uint32_t epoch = 0; epoch < epochs; ++epoch) {
+        // nes_srand_32(epoch + 100);
         printf("\nEpoch %d/%d\n", epoch + 1, epochs);
         int samples_processed_epoch = 0;
         // int32_t loss_sum = 0;

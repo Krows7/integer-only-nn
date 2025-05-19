@@ -48,6 +48,7 @@ void init_weights(Matrix8 *weights) {
 }
 
 __bank(1) Network* create_network(lsize_t layers_size, const LayerType* kinds, const lsize_t* sizes, lsize_t batch_size) {
+    nes_srand_32(1);
     println("Initializing network...");
     Network* network = init_network(layers_size, batch_size);
     println("Initializing layers...");
@@ -213,6 +214,7 @@ void print_loss(const Matrix8* loss) {
 const char* num = "%d\n";
 
 __bank(2) void train_network(const Network* network, int8_t*** X_train, Vector8* Y_train, lsize_t train_samples_size, int8_t*** X_test, Vector8* Y_test, lsize_t test_samples_size, uint32_t epochs) {
+    nes_srand_32(1);
     lsize_t batch_size = network->batch_size;
     lsize_t input_size = network->layers[0]->weights.height;
     println("\n--- Starting Training (C) for " FMT_u32 " Epochs ---", epochs);
