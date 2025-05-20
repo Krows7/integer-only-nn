@@ -26,7 +26,9 @@ __bank(1) Layer* init_layer(lsize_t batch_size, lsize_t num_inputs, lsize_t num_
     if (type == LINEAR) {
         l->weights = init_m8(num_neurons, num_inputs); // fan_out x fan_in
     }
-    l->activations = init_m8(batch_size, num_neurons);
+    // Initial activations don't need before training
+    // l->activations = init_m8(batch_size, num_neurons);
+    l->activations = init_m8(0, 0);
     l->input_copy = init_m8(0, 0);
     // println("%d %d %d %d %d %d", l->weights.width, l->weights.height, l->activations.width, l->activations.height, l->input_copy.width, l->input_copy.height);
     return l;
