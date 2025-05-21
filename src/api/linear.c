@@ -69,9 +69,9 @@ void printMap()
 Pool32* create_pool_32(lsize_t capacity) {
     Pool32* pool = malloc(sizeof(Pool32));
     pool->matrices = malloc(capacity * sizeof(Matrix32*));
-    for (lsize_t i = 0; i < capacity; i++) {
-        pool->matrices[i] = malloc(sizeof(Matrix32));
-    }
+    // for (lsize_t i = 0; i < capacity; i++) {
+    //     pool->matrices[i] = malloc(sizeof(Matrix32));
+    // }
     // pool->reserved = calloc(sizeof(uint8_t), capacity);
     // TODO Gonna replace calloc for sake of compatibility
     pool->reserved = malloc(sizeof(uint8_t) * capacity);
@@ -92,9 +92,9 @@ __attribute__((section(".bss"))) volatile Pool32* m_pool = NULL;
 Pool8* create_pool_8(lsize_t capacity) {
     Pool8* pool = malloc(sizeof(Pool8));
     pool->matrices = malloc(capacity * sizeof(Matrix8*));
-    for (lsize_t i = 0; i < capacity; i++) {
-        pool->matrices[i] = malloc(sizeof(Matrix8));
-    }
+    // for (lsize_t i = 0; i < capacity; i++) {
+    //     pool->matrices[i] = malloc(sizeof(Matrix8));
+    // }
     // pool->reserved = calloc(sizeof(uint8_t), capacity);
     // TODO Gonna replace calloc for sake of compatibility
     pool->reserved = malloc(sizeof(uint8_t) * capacity);
@@ -175,14 +175,23 @@ __bank(2) Matrix8 init_m8_(lsize_t width, lsize_t height) {
 
 __bank(2) Matrix8 init_m8(lsize_t width, lsize_t height) {
     count_inc(d_request_m8);
+    for (lsize_t i = 0; i < m8_pool->size; ++i) {
+        if (m8_pool->reserved[i] == 0) {
+            if (m8_pool->matrices[i]->width == width && m8_pool->matrices[i]->height == height) {
+                m8_pool->reserved[i] = 1;
+                return *m8_pool->matrices[i];
+            }
+        }
+    }
     if (m8_pool->size < m8_pool->capacity) {
         m8_pool->reserved[m8_pool->size] = 1;
+        m8_pool->matrices[m8_pool->size] = malloc(sizeof(Matrix8));
         *m8_pool->matrices[m8_pool->size] = init_m8_(width, height);
         return *m8_pool->matrices[m8_pool->size++];
     } else {
         uint32_t first_free = m8_pool->capacity;
         uint32_t first_suitable_free = m8_pool->capacity;
-        for (lsize_t i = 0; i < m8_pool->size; i++) {
+        for (lsize_t i = 0; i < m8_pool->size; ++i) {
             if (m8_pool->reserved[i] == 0) {
                 if (first_free == m8_pool->capacity) first_free = i;
                 if (first_suitable_free == m8_pool->capacity && m8_pool->matrices[i]->height == height) first_suitable_free = i;
@@ -195,24 +204,27 @@ __bank(2) Matrix8 init_m8(lsize_t width, lsize_t height) {
         if (first_suitable_free != m8_pool->capacity) {
             m8_pool->reserved[first_suitable_free] = 1;
             Matrix8* m = m8_pool->matrices[first_suitable_free];
-            int8_t** matrix = malloc(width * sizeof(int8_t*));
             if (m->width < width) {
+                int8_t** matrix = malloc(width * sizeof(int8_t*));
                 for (lsize_t i = 0; i < m->width; ++i) {
                     matrix[i] = m->matrix[i];
                 }
+                free(m->matrix);
+                m->matrix = matrix;
                 for (lsize_t i = m->width; i < width; ++i) {
                     matrix[i] = malloc(height * sizeof(int8_t));
                 }
             } else {
-                for (lsize_t i = 0; i < width; ++i) {
-                    matrix[i] = m->matrix[i];
-                }
                 for (lsize_t i = width; i < m->width; ++i) {
                     free(m->matrix[i]);
                 }
+                int8_t** matrix = malloc(width * sizeof(int8_t*));
+                for (lsize_t i = 0; i < width; ++i) {
+                    matrix[i] = m->matrix[i];
+                }
+                free(m->matrix);
+                m->matrix = matrix;
             }
-            free(m->matrix);
-            m->matrix = matrix;
             m->width = width;
             return *m;
         }
@@ -285,14 +297,23 @@ __bank(2) Matrix32 init_m32_(lsize_t width, lsize_t height) {
 // ------------ Matrix32 ------------
 __bank(2) Matrix32 init_m32(lsize_t width, lsize_t height) {
     count_inc(d_request_m32);
+    for (lsize_t i = 0; i < m_pool->size; ++i) {
+        if (m_pool->reserved[i] == 0) {
+            if (m_pool->matrices[i]->width == width && m_pool->matrices[i]->height == height) {
+                m_pool->reserved[i] = 1;
+                return *m_pool->matrices[i];
+            }
+        }
+    }
     if (m_pool->size < m_pool->capacity) {
         m_pool->reserved[m_pool->size] = 1;
+        m_pool->matrices[m_pool->size] = malloc(sizeof(Matrix32));
         *m_pool->matrices[m_pool->size] = init_m32_(width, height);
         return *m_pool->matrices[m_pool->size++];
     } else {
         uint32_t first_free = m_pool->capacity;
         uint32_t first_suitable_free = m_pool->capacity;
-        for (lsize_t i = 0; i < m_pool->size; i++) {
+        for (lsize_t i = 0; i < m_pool->size; ++i) {
             if (m_pool->reserved[i] == 0) {
                 if (first_free == m_pool->capacity) first_free = i;
                 if (first_suitable_free == m_pool->capacity && m_pool->matrices[i]->height == height) first_suitable_free = i;
@@ -305,24 +326,27 @@ __bank(2) Matrix32 init_m32(lsize_t width, lsize_t height) {
         if (first_suitable_free != m_pool->capacity) {
             m_pool->reserved[first_suitable_free] = 1;
             Matrix32* m = m_pool->matrices[first_suitable_free];
-            int32_t** matrix = malloc(width * sizeof(int32_t*));
             if (m->width < width) {
+                int32_t** matrix = malloc(width * sizeof(int32_t*));
                 for (lsize_t i = 0; i < m->width; ++i) {
                     matrix[i] = m->matrix[i];
                 }
+                free(m->matrix);
+                m->matrix = matrix;
                 for (lsize_t i = m->width; i < width; ++i) {
                     matrix[i] = malloc(height * sizeof(int32_t));
                 }
             } else {
-                for (lsize_t i = 0; i < width; ++i) {
-                    matrix[i] = m->matrix[i];
-                }
                 for (lsize_t i = width; i < m->width; ++i) {
                     free(m->matrix[i]);
                 }
+                int32_t** matrix = malloc(width * sizeof(int32_t*));
+                for (lsize_t i = 0; i < width; ++i) {
+                    matrix[i] = m->matrix[i];
+                }
+                free(m->matrix);
+                m->matrix = matrix;
             }
-            free(m->matrix);
-            m->matrix = matrix;
             m->width = width;
             return *m;
         }
