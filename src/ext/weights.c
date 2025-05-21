@@ -26,7 +26,7 @@ void init_weights_xavier_uniform(Matrix8* weights) {
     float max_abs_val = 0.0f;
     for (size_t i = 0; i < num_elements; ++i) {
         // float rand_f = (float)rand() / (float)RAND_MAX;
-        float rand_f = (float)rand32() / (float)RAND_MAX;
+        float rand_f = (float)rand32() / (float)RANDOM_32_MAX;
         temp_weights[i] = (rand_f * 2.0f * a) - a;
         float abs_val = fabsf(temp_weights[i]);
         if (abs_val > max_abs_val) max_abs_val = abs_val;

@@ -18,6 +18,8 @@ __attribute__((weak)) void nes_srand_32(uint32_t s);
 #define RANDOM_LOW_BITS
 #endif
 
+#define RANDOM_32_MAX 0xFFFFFFFF
+
 #define rand32() nes_rand_32()
 
 // Turns out this method is useless
