@@ -76,6 +76,43 @@ __bank(2) Matrix8 act_calc(Matrix32* int32_acc, int8_t input_exp) {
     return result;
 }
 
+void act_calc_direct(Matrix32* int32_acc, int8_t input_exp, Matrix8* out) {
+    int8_t int32_bitwidth = estimate_matrix_bitwidth(int32_acc);
+    int8_t shift = int32_bitwidth - BITWIDTH;
+    if (out->width != int32_acc->width || out->height != int32_acc->height) {
+        // TODO Replace with resize
+        free_m8(out);
+        *out = init_m8(int32_acc->width, int32_acc->height);
+    }
+    // Matrix8 result = init_m8(int32_acc->width, int32_acc->height);
+    // printf("Bitshift: %d\n", shift);
+
+    if (shift > 0) {
+        for (lsize_t i = 0; i < out->width; ++i) {
+            // printf("%d %d\n\n", i, result.width);
+            int8_t* resultI = out->matrix[i];
+            const int32_t* inputI = int32_acc->matrix[i];
+            for (lsize_t j = 0; j < out->height; ++j) {
+                // Use RoundShift for activations
+                // printf("%d %d %d %d\n", i, result.width, j, result.height);
+                resultI[j] = round_shift(inputI[j], shift);
+                // printf("%d %d %d %d\n\n", i, result.width, j, result.height);
+            }
+        }
+    } else {
+        for (lsize_t i = 0; i < out->width; ++i) {
+            for (lsize_t j = 0; j < out->height; ++j) {
+                // Clamp directly if no shift needed
+                int32_t val = int32_acc->matrix[i][j] >> -shift;
+                if (val > 127) out->matrix[i][j] = 127;
+                else if (val < -128) out->matrix[i][j] = -128;
+                else out->matrix[i][j] = (int8_t)val;
+            }
+        }
+    }
+    out->scale = input_exp + shift;
+}
+
 void err_calc_1(Matrix32* int32_acc, Matrix8* out) {
     // input_exp = exponent of incoming error + exponent of weight
     int8_t int32_bitwidth = estimate_matrix_bitwidth(int32_acc);
@@ -252,44 +289,46 @@ __bank(2) void weight_update(const Layer* layer, const Matrix8* grad_int8) {
 
 
 
-__bank(2) Matrix8 layer_forward(Layer* layer, const Matrix8* input) {
-    // free_m8(&layer->input_copy); // Free previous copy if necessary
-    // layer->input_copy = m_cpy(input); // Assumes m_cpy copies scale
-    m_cpy(&layer->input_copy, input);
-    if (layer->type == LINEAR) {
-        Matrix32 temp = get_mul8_2t(&layer->input_copy, &layer->weights);
+// __bank(2) Matrix8 layer_forward(Layer* layer, const Matrix8* input) {
+//     // free_m8(&layer->input_copy); // Free previous copy if necessary
+//     // layer->input_copy = m_cpy(input); // Assumes m_cpy copies scale
+//     // m_cpy(&layer->input_copy, input);
+//     if (layer->type == LINEAR) {
+//         Matrix32 temp = get_mul8_2t(input, &layer->weights);
 
-        // Calculate activations and output exponent
-        Matrix8 result = act_calc(&temp, layer->input_copy.scale + layer->weights.scale);
-        free_m32(&temp); // Free intermediate 32-bit result
+//         // Calculate activations and output exponent
+//         Matrix8 result = act_calc(&temp, input->scale + layer->weights.scale);
+//         free_m32(&temp); // Free intermediate 32-bit result
 
-        // Store activation and its exponent
-        // free_m8(&layer->activations); // Free previous
-        // layer->activations = m_cpy(&result); // Store result
-        m_cpy(&layer->activations, &result);
+//         // Store activation and its exponent
+//         // free_m8(&layer->activations); // Free previous
+//         // layer->activations = m_cpy(&result); // Store result
 
-        return result; // result contains data and scale
-    } else if (layer->type == RELU) {
-        // ReLU: max(input, 0)
-        // Exponent does not change through ReLU
-        Matrix8 result = init_m8(input->width, input->height);
-        result.scale = input->scale; // Copy input exponent
-        for (lsize_t i = 0; i < input->width; ++i) {
-            for (lsize_t j = 0; j < input->height; ++j) {
-                result.matrix[i][j] = (input->matrix[i][j] > 0) ? input->matrix[i][j] : 0;
-            }
-        }
-        // Store activation and its exponent
-        // free_m8(&layer->activations);
-        // layer->activations = m_cpy(&result);
-        m_cpy(&layer->activations, &result);
+//         // TODO don't copy but change act_calc to *out (direct write)
+//         m_cpy(&layer->activations, &result);
 
-        return result;
-    } else {
-        error("Error: Unsupported layer type in layer_forward.");
-        return init_m8(0,0);
-    }
-}
+//         return result; // result contains data and scale
+//     } else if (layer->type == RELU) {
+//         // ReLU: max(input, 0)
+//         // Exponent does not change through ReLU
+//         Matrix8 result = init_m8(input->width, input->height);
+//         result.scale = input->scale; // Copy input exponent
+//         for (lsize_t i = 0; i < input->width; ++i) {
+//             for (lsize_t j = 0; j < input->height; ++j) {
+//                 result.matrix[i][j] = (input->matrix[i][j] > 0) ? input->matrix[i][j] : 0;
+//             }
+//         }
+//         // Store activation and its exponent
+//         // free_m8(&layer->activations);
+//         // layer->activations = m_cpy(&result);
+//         m_cpy(&layer->activations, &result);
+
+//         return result;
+//     } else {
+//         error("Error: Unsupported layer type in layer_forward.");
+//         return init_m8(0,0);
+//     }
+// }
 
 // __bank(2) Matrix8 layer_backward(const Layer* layer, const Matrix8* error_in) {
 //     if (layer->type == LINEAR) {
@@ -355,11 +394,12 @@ __bank(2) Matrix8 layer_forward(Layer* layer, const Matrix8* input) {
 //     return init_m8(0,0);
 // }
 
-__bank(2) void layer_backward_1(const Layer* layer, const Matrix8* error_in, Matrix8* out) {
+// __bank(2) void layer_backward_1(const Layer* layer, const Matrix8* error_in, Matrix8* out) {
+void layer_backward_1(const Layer* layer, const Matrix8* input, const Matrix8* error_in, Matrix8* out) {
     if (layer->type == LINEAR) {
         Matrix32 err_out_int32 = get_mul8(error_in, &layer->weights);
 
-        Matrix32 grad_int32acc = get_mul8_1t(error_in, &layer->input_copy);
+        Matrix32 grad_int32acc = get_mul8_1t(error_in, input);
 
         // Matrix8 err_out = err_calc(&err_out_int32);
         // err_calc_1(&err_out_int32, out);
@@ -400,11 +440,11 @@ __bank(2) void layer_backward_1(const Layer* layer, const Matrix8* error_in, Mat
 }
 
 __bank(2) void layer_forward_1(Layer* layer, const Matrix8* input, Matrix8* out) {
-    m_cpy(&layer->input_copy, input);
+    // m_cpy(&layer->input_copy, input);
     // printf("kek\n");
     if (layer->type == LINEAR) {
         // printf("kek1\n");
-        Matrix32 temp = get_mul8_2t(&layer->input_copy, &layer->weights);
+        Matrix32 temp = get_mul8_2t(input, &layer->weights);
         print_matrix8_d(&layer->input_copy, "A");
         print_matrix8_d(&layer->weights, "B");
         print_matrix32_d(&temp, "layer_forward_1_temp");
@@ -416,7 +456,7 @@ __bank(2) void layer_forward_1(Layer* layer, const Matrix8* input, Matrix8* out)
         free(out->matrix);
         // log("%d + %d = %d", layer->input_copy.scale, layer->weights.scale, layer->input_copy.scale + layer->weights.scale);
         // printf("Gonna act_calc\n");
-        *out = act_calc(&temp, layer->input_copy.scale + layer->weights.scale);
+        *out = act_calc(&temp, input->scale + layer->weights.scale);
         // printf("Gonna Free\n");
         free_m32(&temp);
         // printf("Gonna copy\n");
@@ -443,6 +483,32 @@ __bank(2) void layer_forward_1(Layer* layer, const Matrix8* input, Matrix8* out)
     }
 }
 
+void layer_forward_direct(Layer* layer, const Matrix8* input) {
+    if (layer->type == LINEAR) {
+        Matrix32 temp = get_mul8_2t(input, &layer->weights);
+        print_matrix8_d(&layer->input_copy, "A");
+        print_matrix8_d(&layer->weights, "B");
+        print_matrix32_d(&temp, "layer_forward_1_temp");
+        act_calc_direct(&temp, input->scale + layer->weights.scale, &layer->activations);
+        free_m32(&temp);
+    } else if (layer->type == RELU) {
+        if (layer->activations.width != input->width || layer->activations.height != input->height) {
+            // TODO: Replace with resize
+            free_m8(&layer->activations);
+            layer->activations = init_m8(input->width, input->height);
+        }
+        for (lsize_t i = 0; i < input->width; ++i) {
+            for (lsize_t j = 0; j < input->height; ++j) {
+                int8_t abs_v = (input->matrix[i][j] > 0) ? input->matrix[i][j] : 0;
+                layer->activations.matrix[i][j] = abs_v;
+            }
+        }
+        layer->activations.scale = input->scale;
+    } else {
+        error("Error: Unsupported layer type in layer_forward.");
+    }
+}
+
 __bank(2) Matrix8 network_forward_2(const Network* network, const Matrix8* X) {
     // // Matrix8 next_activations = {0};
     // Matrix8 next_activations = init_m8(0, 0);
@@ -455,6 +521,8 @@ __bank(2) Matrix8 network_forward_2(const Network* network, const Matrix8* X) {
     // return result;
     Matrix8 next_activations = {0};
     // printf("Layer: 0\n");
+    m_cpy(&network->layers[0]->input_copy, X);
+
     layer_forward_1(network->layers[0], X, &next_activations);
     Matrix8 current_activations = next_activations; // Keep the latest (contains data and scale)
     print_matrix8_d(&current_activations, "First Inter activations");
@@ -473,38 +541,50 @@ __bank(2) Matrix8 network_forward_2(const Network* network, const Matrix8* X) {
     return current_activations;
 }
 
-void assert_m8_equals(const Matrix8* a, const Matrix8* b) {
-    if (a->width != b->width || a->height != b->height) {
-        error("Error: Matrix dimensions do not match.\n");
-        error("a shape: (%d, %d), b shape: (%d, %d)\n", a->width, a->height, b->width, b->height);
-        exit(1);
+Matrix8 network_forward_direct(const Network* network, const Matrix8* X) {
+    m_cpy(&network->layers[0]->input_copy, X);
+    layer_forward_direct(network->layers[0], X);
+    print_matrix8_d(&current_activations, "First Inter activations");
+    for (lsize_t i = 1; i < network->num_layers; ++i) {
+        layer_forward_direct(network->layers[i], &network->layers[i - 1]->activations);
+        print_matrix8_d(&current_activations, "Inter activations");
     }
-
-    for (lsize_t i = 0; i < a->width; ++i) {
-        for (lsize_t j = 0; j < a->height; ++j) {
-            if (a->matrix[i][j] != b->matrix[i][j]) {
-                error("Error: Matrix values do not match at (%d, %d).\n", i, j);
-                error("a value: %d, b value: %d\n", a->matrix[i][j], b->matrix[i][j]);
-                exit(1);
-            }
-        }
-    }
+    return network->layers[network->num_layers - 1]->activations;
 }
+
+// void assert_m8_equals(const Matrix8* a, const Matrix8* b) {
+//     if (a->width != b->width || a->height != b->height) {
+//         error("Error: Matrix dimensions do not match.\n");
+//         error("a shape: (%d, %d), b shape: (%d, %d)\n", a->width, a->height, b->width, b->height);
+//         exit(1);
+//     }
+
+//     for (lsize_t i = 0; i < a->width; ++i) {
+//         for (lsize_t j = 0; j < a->height; ++j) {
+//             if (a->matrix[i][j] != b->matrix[i][j]) {
+//                 error("Error: Matrix values do not match at (%d, %d).\n", i, j);
+//                 error("a value: %d, b value: %d\n", a->matrix[i][j], b->matrix[i][j]);
+//                 exit(1);
+//             }
+//         }
+//     }
+// }
 
 __bank(2) Matrix8 network_forward(const Network* network, const Matrix8* X) {
-    return network_forward_2(network, X);
+    // return network_forward_2(network, X);
+    return network_forward_direct(network, X);
 }
 
-Matrix32 to32(const Matrix8* matrix) {
-    Matrix32 result = init_m32(matrix->width, matrix->height);
-    for (lsize_t i = 0; i < matrix->width; ++i) {
-        for (lsize_t j = 0; j < matrix->height; ++j) {
-            result.matrix[i][j] = (int32_t) matrix->matrix[i][j];
-        }
-    }
-    result.scale = matrix->scale;
-    return result;
-}
+// Matrix32 to32(const Matrix8* matrix) {
+//     Matrix32 result = init_m32(matrix->width, matrix->height);
+//     for (lsize_t i = 0; i < matrix->width; ++i) {
+//         for (lsize_t j = 0; j < matrix->height; ++j) {
+//             result.matrix[i][j] = (int32_t) matrix->matrix[i][j];
+//         }
+//     }
+//     result.scale = matrix->scale;
+//     return result;
+// }
 
 // def StoShift(input, shift):
 //     '''
@@ -695,9 +775,10 @@ Matrix8 network_backward_1(const Network* network, const Vector8* Y) {
     print_vector8_d(Y, "Y");
     print_matrix8_d(&loss, "Loss");
 
-    for (int i = network->num_layers - 1; i >= 0; --i) {
-        layer_backward_1(network->layers[i], &loss, &loss);
+    for (int i = network->num_layers - 1; i > 0; --i) {
+        layer_backward_1(network->layers[i], &network->layers[i - 1]->activations, &loss, &loss);
     }
+    layer_backward_1(network->layers[0], &network->layers[0]->input_copy, &loss, &loss);
     free_m8(&loss);
     return loss;
 }
@@ -729,9 +810,10 @@ Vector8 v_cpy_range(const Vector8* orig, lsize_t start, lsize_t end) {
     return result;
 }
 
+// Copies all elements from m into to. If dest matrix has not proper shape, reallocs it.
 void m_cpy(Matrix8* to, const Matrix8 *m) {
     if (to->width != m->width || to->height != m->height) {
-        free_m8(to);
+        if (to->matrix) free_m8(to);
         *to = init_m8(m->width, m->height);
         // for (lsize_t i = 0; i < to->width; ++i) {
         //     free(to->matrix[i]);
@@ -772,7 +854,7 @@ void free_layer(Layer* layer) {
     if (!layer) return;
     if (layer->type == LINEAR) free_m8(&layer->weights);
     free_m8(&layer->activations);
-    free_m8(&layer->input_copy);
+    // free_m8(&layer->input_copy);
     free(layer);
 }
 
