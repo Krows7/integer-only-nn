@@ -54,6 +54,8 @@ typedef uint8_t lsize_t;
 typedef uint32_t lsize_t;
 #endif
 
+// #define NO_PRINT
+
 #ifdef NO_PRINT
 #define print(...)
 #define print_num(num)

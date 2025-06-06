@@ -19,6 +19,15 @@ void write_word(size_t value) {
 #define write_word(value)
 #endif
 
+void* assert_malloc_log(size_t size, const char* file, int line) {
+    // println("MALLOC [%s:%d] %zu", file, line, size);
+    return assert_malloc(size);
+}
+
+extern size_t __heap_bytes_used();
+extern size_t __heap_limit();
+extern size_t __heap_bytes_free();
+
 // void* assert_malloc(size_t size) {
 void* assert_malloc(size_t val) {
     // if (!size) return NULL;
@@ -49,7 +58,7 @@ void* assert_malloc(size_t val) {
         // printf("Heap Bytes Free:\n");
         write_word(__heap_bytes_free());
 
-        fatal("assert_malloc: Malloc call #%u failed to allocate %zu bytes.", (unsigned int)i, val);
+        // fatal("assert_malloc: Malloc call #%u failed to allocate %zu bytes.", (unsigned int)i, val);
         // (*(size_t*)0x4018) = __heap_bytes_used();
         // (*(size_t*)0x4018) = __heap_limit();
         // (*(size_t*)0x4018) = __heap_bytes_free();

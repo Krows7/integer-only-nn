@@ -243,7 +243,7 @@ __bank(2) Matrix8 init_m8(lsize_t width, lsize_t height) {
 
 __bank(2) void free_m8(Matrix8* m) {
     if (!m || !m->matrix) return;
-    for (lsize_t i = 0; i < m8_pool->size; i++) {
+    for (lsize_t i = 0; i < m8_pool->size; ++i) {
         if (m8_pool->matrices[i]->matrix == m->matrix) {
             m8_pool->reserved[i] = 0;
             return;

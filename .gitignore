@@ -9,3 +9,4 @@ data/**/*
 llvm-build/
 valgrind-logs/
 run-logs/*
+llvm-build-old/

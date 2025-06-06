@@ -64,4 +64,7 @@ static inline uint16_t urand16_rs(void) {
 #define rand8() ((int8_t) (urand8() - 128))
 #define rand16() ((int16_t) (urand16() - 32768))
 
+#define srand8(seed) nes_srand(seed)
+#define srand32(seed) nes_srand_32(seed)
+
 #endif

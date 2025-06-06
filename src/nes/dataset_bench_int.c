@@ -63,6 +63,18 @@ __bank(1) Network* create_network(lsize_t layers_size, const LayerType* kinds, c
     return network;
 }
 
+Network* create_raw_network(lsize_t layers_size, const LayerType* kinds, const lsize_t* sizes, lsize_t batch_size) {
+    // nes_srand_32(1);
+    // println("Initializing network...");
+    Network* network = init_network(layers_size, batch_size);
+    // println("Initializing layers...");
+    for (lsize_t i = 0; i < layers_size; ++i) {
+        network->layers[i] = init_layer(batch_size, sizes[i], sizes[i + 1], kinds[i]);
+    }
+    // print_network(network);
+    return network;
+}
+
 __bank(1) Vector8* predict(const Network* network, const Matrix8* x_batch) {
     Matrix8 output_activations = network_forward(network, x_batch);
 

@@ -1,0 +1,6 @@
+-I.src/api
+-I.src/nes
+-I.src/ext
+-I.src/game
+-I../llvm-mos-sdk/mos-platform/nes/include
+-I../llvm-mos-sdk/mos-platform/nes-mmc3/include

@@ -26,6 +26,8 @@ typedef struct {
 
 // --- Function Declarations ---
 
+void layer_backward_1(const Layer* layer, const Matrix8* input, const Matrix8* error_in, Matrix8* out);
+
 __bank(1) Network* init_network(lsize_t num_layers, lsize_t batch_size);
 __bank(1) Layer* init_layer(lsize_t batch_size, lsize_t num_inputs, lsize_t num_neurons, LayerType type);
 __bank(1) void free_network(Network* network);

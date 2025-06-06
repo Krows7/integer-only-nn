@@ -16,6 +16,8 @@ __bank(1) Vector8* predict(const Network* network, const Matrix8* x_batch);
 // sizes' length is (layers_size + 1)
 __bank(1) Network* create_network(lsize_t layers_size, const LayerType* kinds, const lsize_t* sizes, lsize_t batch_size);
 
+Network* create_raw_network(lsize_t layers_size, const LayerType* kinds, const lsize_t* sizes, lsize_t batch_size);
+
 __bank(1) void evaluate(const Network* network, int8_t*** X_test, const Vector8* Y_test, lsize_t num_test_samples);
 
 __bank(1) void evaluate_full(const Network* network, int8_t*** X_test, const Vector8* Y_test, lsize_t num_test_samples, int8_t*** X_train, const Vector8* Y_train, lsize_t num_train_samples);

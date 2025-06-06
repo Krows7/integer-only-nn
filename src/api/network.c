@@ -27,7 +27,7 @@ __bank(1) Layer* init_layer(lsize_t batch_size, lsize_t num_inputs, lsize_t num_
     }
     // Initial activations don't need before training
     // l->activations = init_m8(batch_size, num_neurons);
-    l->activations = init_m8(0, 0);
+    l->activations = init_m8(0, num_neurons);
     l->input_copy = init_m8(0, 0);
     // println("%d %d %d %d %d %d", l->weights.width, l->weights.height, l->activations.width, l->activations.height, l->input_copy.width, l->input_copy.height);
     return l;
@@ -427,7 +427,7 @@ void layer_backward_1(const Layer* layer, const Matrix8* input, const Matrix8* e
         free_m8(&grad_int8); // Free the int8 gradient matrix
 
         print_matrix8_d(&grad_int8, "Layer Backward Gradient");
-        print_matrix8_d(&err_out, "Layer Backward Linear");
+        // print_matrix8_d(&err_out, "Layer Backward Linear");
     } else if (layer->type == RELU) {
         for (lsize_t i = 0; i < out->width; ++i) {
             for (lsize_t j = 0; j < out->height; ++j) {
@@ -435,7 +435,7 @@ void layer_backward_1(const Layer* layer, const Matrix8* input, const Matrix8* e
                 out->matrix[i][j] = (layer->activations.matrix[i][j] > 0) ? error_in->matrix[i][j] : 0;
             }
         }
-        print_matrix8_d(&err_out, "Layer Backward ReLU");
+        // print_matrix8_d(&err_out, "Layer Backward ReLU");
     } else error("Unsupported layer type in layer_backward.");
 }
 
@@ -542,12 +542,14 @@ __bank(2) Matrix8 network_forward_2(const Network* network, const Matrix8* X) {
 }
 
 Matrix8 network_forward_direct(const Network* network, const Matrix8* X) {
+    // println("1");
     m_cpy(&network->layers[0]->input_copy, X);
+    // println("2");
     layer_forward_direct(network->layers[0], X);
-    print_matrix8_d(&current_activations, "First Inter activations");
+    // print_matrix8_d(&current_activations, "First Inter activations");
     for (lsize_t i = 1; i < network->num_layers; ++i) {
         layer_forward_direct(network->layers[i], &network->layers[i - 1]->activations);
-        print_matrix8_d(&current_activations, "Inter activations");
+        // print_matrix8_d(&current_activations, "Inter activations");
     }
     return network->layers[network->num_layers - 1]->activations;
 }
@@ -812,6 +814,7 @@ Vector8 v_cpy_range(const Vector8* orig, lsize_t start, lsize_t end) {
 
 // Copies all elements from m into to. If dest matrix has not proper shape, reallocs it.
 void m_cpy(Matrix8* to, const Matrix8 *m) {
+    // println("%d %d %d %d", to->width, to->height, m->width, m->height);
     if (to->width != m->width || to->height != m->height) {
         if (to->matrix) free_m8(to);
         *to = init_m8(m->width, m->height);
@@ -874,7 +877,7 @@ void print_layer(const Layer* layer, char* name) {
 
 void print_network(const Network *network) {
     println("Network:");
-    println("Batch Size: %d", network->layers[0]->activations.width);
+    println("Batch Size: %d", network->batch_size);
     print("Input (%d) -> ", network->layers[0]->weights.height);
     for (lsize_t i = 0; i < network->num_layers; ++i) {
         print("%s", network->layers[i]->type == LINEAR ? "Linear" : "ReLU");

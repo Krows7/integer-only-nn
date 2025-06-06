@@ -1,18 +1,23 @@
+#include <stddef.h>
 #include <stdint.h>
 #include <string.h>
 #include <time.h>
 #include "base.h"
 #include "dataset_bench_int.h"
+#include "network.h"
 #include "quantization.h"
-#include "iris-data.h"
-// #include "iris-data-shuffled.h"
+// #include "iris-data.h"
+#include "iris-data-shuffled.h"
 #include <stdlib.h>
+
+#define asm __asm__
 
 #ifdef __NES__
 #include <ines.h>
 
 MAPPER_PRG_ROM_KB(32);
 MAPPER_PRG_RAM_KB(8);
+MAPPER_CHR_ROM_KB(8);
 #endif
 
 // --- Dataset Constants ---
@@ -27,8 +32,8 @@ MAPPER_PRG_RAM_KB(8);
 #define IRIS_MAX_TEST_SAMPLES (IRIS_TOTAL_SAMPLES - IRIS_MAX_TRAIN_SAMPLES)
 
 // --- Hyperparameters (Adjusted for Iris) ---
-#define BATCH_SIZE 16           // Smaller batch size for smaller dataset
-#define HIDDEN_NEURONS 64       // Reduced hidden layer size
+#define BATCH_SIZE 4           // Smaller batch size for smaller dataset
+#define HIDDEN_NEURONS 8       // Reduced hidden layer size
 #define NUM_EPOCHS 10           // May need more epochs for convergence
 #define LEARNING_RATE_MU 4      // Keep for now, might need tuning
 
@@ -42,49 +47,51 @@ lsize_t num_train_samples_loaded = 0;
 lsize_t num_test_samples_loaded = 0;
 
 void shuffle_indices(uint8_t *array, size_t n) {
-    if (n > 1) {
-        for (size_t i = 0; i < n - 1; i++) {
-          size_t j = i + rand() / (RAND_MAX / (n - i) + 1);
-          int t = array[j];
-          array[j] = array[i];
-          array[i] = t;
-        }
-    }
+    // if (n > 1) {
+    //     for (size_t i = 0; i < n - 1; i++) {
+    //       size_t j = i + rand() / (RAND_MAX / (n - i) + 1);
+    //       int t = array[j];
+    //       array[j] = array[i];
+    //       array[i] = t;
+    //     }
+    // }
 }
 
 void split_iris(int8_t*** X_train, Vector8* Y_train, lsize_t* train_count, int8_t*** X_test, Vector8* Y_test, lsize_t* test_count) {
     *train_count = (int16_t) IRIS_SAMPLES * (int16_t) TRAIN_SPLIT_RATIO / (int16_t) 100;
     *test_count = IRIS_SAMPLES - *train_count;
 
-    // // TODO TESTS
-    // *X_train = iris_X;
-    // *X_train = malloc(*train_count * sizeof(int8_t*));
-    // for (lsize_t i = 0; i < *train_count; ++i) {
-    //     // Cast to (int8_t*) to discard const/volatile for the assignment,
-    //     // assuming read-only access through X_train_float.
-    //     (*X_train)[i] = (int8_t*)iris_X[i]; // If using shuffled indices
-    //     // Or, for a simple sequential split:
-    //     // (*X_train)[i] = (int8_t*)iris_X[i];
-    // }
+    // TODO TESTS
+    // *X_train = (int8_t**) iris_X;
+    *X_train = malloc(*train_count * sizeof(int8_t*));
+    for (lsize_t i = 0; i < *train_count; ++i) {
+        // Cast to (int8_t*) to discard const/volatile for the assignment,
+        // assuming read-only access through X_train_float.
+        (*X_train)[i] = (int8_t*)iris_X[i]; // If using shuffled indices
+        // Or, for a simple sequential split:
+        // (*X_train)[i] = (int8_t*)iris_X[i];
+    }
     
-    // // *X_test = iris_X + *train_count;
-    // *X_test = malloc(*test_count * sizeof(int8_t*));
-    // for (lsize_t i = 0; i < *test_count; ++i) {
-    //     // Cast to (int8_t*) to discard const/volatile for the assignment,
-    //     // assuming read-only access through X_train_float.
-    //     (*X_test)[i] = (int8_t*)iris_X[i + *train_count]; // If using shuffled indices
-    //     // Or, for a simple sequential split:
-    //     // (*X_train)[i] = (int8_t*)iris_X[i];
-    // }
+    // *X_test = iris_X + *train_count;
+    *X_test = malloc(*test_count * sizeof(int8_t*));
+    for (lsize_t i = 0; i < *test_count; ++i) {
+        // Cast to (int8_t*) to discard const/volatile for the assignment,
+        // assuming read-only access through X_train_float.
+        (*X_test)[i] = (int8_t*)iris_X[i + *train_count]; // If using shuffled indices
+        // Or, for a simple sequential split:
+        // (*X_train)[i] = (int8_t*)iris_X[i];
+    }
 
-    // *Y_train = init_v8(*train_count);
-    // // Y_train->vector = iris_Y;
+    *Y_train = init_v8(*train_count);
     // Y_train->vector = iris_Y;
+    free(Y_train->vector);
+    Y_train->vector = (int8_t*) iris_Y;
 
-    // *Y_test = init_v8(*test_count);
-    // Y_test->vector = iris_Y + *train_count;
+    *Y_test = init_v8(*test_count);
+    free(Y_test->vector);
+    Y_test->vector = (int8_t*) (iris_Y + *train_count);
     
-    // return;
+    return;
 
 
 
@@ -134,6 +141,8 @@ void split_iris(int8_t*** X_train, Vector8* Y_train, lsize_t* train_count, int8_
 #ifdef VBCC
 #define MMC3_PRG_RAM_CTRL (*(volatile uint8_t*)0xA001)
 #endif
+
+extern void __set_heap_limit(size_t limit);
 
 int main(void) {
     #ifdef __NES__
@@ -189,6 +198,9 @@ int main(void) {
                 NUM_EPOCHS);
     // cleanup(network, &X_train_float, &Y_train_full, num_train_samples_loaded,
     //                 &X_test_float, &Y_test_full, num_test_samples_loaded);
+    free(X_train_float);
+    free(X_test_float);
+    free_network(network);
 
     println("Iris Classification Test Finished (C).");
 

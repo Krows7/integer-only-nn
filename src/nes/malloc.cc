@@ -431,6 +431,8 @@ void *aligned_alloc(size_t alignment, size_t size) {
   return allocate_free_chunk(aligned_chunk, size);
 }
 
+void __memset(char *ptr, char value, size_t num);
+
 void *calloc(size_t num, size_t size) {
   const auto long_sz = (long)num * size;
   if (long_sz >> 16)
